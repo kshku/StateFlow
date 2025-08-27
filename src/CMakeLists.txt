@@ -1,5 +1,10 @@
 set(SRCS
-    main.c
+    stateflow.h
+    stateflow.c
+)
+
+target_compile_definitions(${APP_NAME} PRIVATE
+    STATEFLOW_NAME="${PROJECT_NAME}"
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})
@@ -29,3 +34,5 @@ elseif(TARGET_PLATFORM STREQUAL "Android")
 endif()
 
 target_include_directories(${APP_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/raylib/src)
+
+add_subdirectory(utils)

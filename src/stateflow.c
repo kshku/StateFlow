@@ -1,0 +1,105 @@
+#include "stateflow.h"
+
+#include <math.h>
+
+typedef struct State {
+        Screen *current_screen;
+} State;
+
+static State state = {0};
+static GlobalState gs = {0};
+
+void stateflow_change_screen(void);
+void stateflow_update_global_state(void);
+
+void stateflow_initialize(void) {
+    InitWindow(1280, 720, STATEFLOW_NAME);
+
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+
+    SetTargetFPS(60);
+
+    stateflow_update_global_state();
+
+    state.current_screen = &splash_screen;
+    state.current_screen->load(&gs);
+}
+
+void stateflow_shutdown(void) {
+    state.current_screen->unload(&gs);
+
+    CloseWindow();
+}
+
+void stateflow_run(void) {
+    while (!WindowShouldClose()) {
+        stateflow_update_global_state();
+
+        switch (state.current_screen->update(&gs)) {
+            case SCREEN_CHANGE:
+                stateflow_change_screen();
+            case SCREEN_SAME:
+            default:
+                break;
+        }
+
+        BeginDrawing();
+        state.current_screen->draw(&gs);
+        DrawText(
+            TextFormat("(%d, %d)\n(%d, %d)", GetScreenWidth(),
+                       GetScreenHeight(), GetRenderWidth(), GetRenderHeight()),
+            50, 50, 50, GREEN);
+        EndDrawing();
+    }
+}
+
+int main(void) {
+    stateflow_initialize();
+    stateflow_run();
+    stateflow_shutdown();
+}
+
+void stateflow_change_screen(void) {
+    if (!gs.next_screen) {
+        // TraceLog(LOG_ERROR, "Next screen is not given!");
+        return;
+    }
+
+    state.current_screen->unload(&gs);
+    state.current_screen = gs.next_screen;
+    gs.next_screen = NULL;
+    state.current_screen->load(&gs);
+}
+
+void stateflow_update_global_state(void) {
+    int width = GetScreenWidth();
+    int height = GetScreenHeight();
+    // int width = GetRenderWidth();
+    // int height = GetRenderHeight();
+
+    if (width < height) {
+        gs.virtual_width = 720;
+        gs.virtual_height = 1280;
+    } else {
+        gs.virtual_height = 720;
+        gs.virtual_width = 1280;
+    }
+
+    float scaleX = (float)width / gs.virtual_width;
+    float scaleY = (float)height / gs.virtual_height;
+    float scale = fminf(scaleX, scaleY);
+
+    Vector2 offset =
+        (Vector2){.x = (width - (gs.virtual_width * scale)) * 0.5,
+                  .y = (height - (gs.virtual_height * scale)) * 0.5};
+
+    gs.camera = (Camera2D){
+        .zoom = scale,
+        .target = (Vector2){0, 0},
+        .rotation = 0.0f,
+        .offset = offset
+    };
+
+    SetMouseOffset(-offset.x, -offset.y);
+    SetMouseScale(1 / scale, 1 / scale);
+}
