@@ -13,9 +13,9 @@ typedef enum ScreenChangeType {
 
 typedef struct GlobalState {
         Screen *next_screen;
-        int virtual_width;
-        int virtual_height;
-        Camera2D camera;
+        // int virtual_width;
+        // int virtual_height;
+        // Camera2D camera;
 } GlobalState;
 
 struct Screen {
@@ -23,6 +23,8 @@ struct Screen {
         void (*unload)(GlobalState *gs);
         ScreenChangeType (*update)(GlobalState *gs);
         void (*draw)(GlobalState *gs);
+        void (*before_draw)(GlobalState *gs);
 };
 
 extern Screen splash_screen;
+extern Screen menu;

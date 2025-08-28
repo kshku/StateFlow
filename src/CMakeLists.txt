@@ -1,6 +1,8 @@
 set(SRCS
     stateflow.h
     stateflow.c
+    splash_screen.c
+    menu.c
 )
 
 target_compile_definitions(${APP_NAME} PRIVATE

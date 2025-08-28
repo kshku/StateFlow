@@ -10,16 +10,17 @@ static State state = {0};
 static GlobalState gs = {0};
 
 void stateflow_change_screen(void);
-void stateflow_update_global_state(void);
+
+// void stateflow_update_global_state(void);
 
 void stateflow_initialize(void) {
-    InitWindow(1280, 720, STATEFLOW_NAME);
+    InitWindow(800, 600, STATEFLOW_NAME);
 
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     SetTargetFPS(60);
 
-    stateflow_update_global_state();
+    // stateflow_update_global_state();
 
     state.current_screen = &splash_screen;
     state.current_screen->load(&gs);
@@ -33,7 +34,7 @@ void stateflow_shutdown(void) {
 
 void stateflow_run(void) {
     while (!WindowShouldClose()) {
-        stateflow_update_global_state();
+        // stateflow_update_global_state();
 
         switch (state.current_screen->update(&gs)) {
             case SCREEN_CHANGE:
@@ -42,6 +43,9 @@ void stateflow_run(void) {
             default:
                 break;
         }
+
+        if (state.current_screen->before_draw)
+            state.current_screen->before_draw(&gs);
 
         BeginDrawing();
         state.current_screen->draw(&gs);
@@ -71,35 +75,35 @@ void stateflow_change_screen(void) {
     state.current_screen->load(&gs);
 }
 
-void stateflow_update_global_state(void) {
-    int width = GetScreenWidth();
-    int height = GetScreenHeight();
-    // int width = GetRenderWidth();
-    // int height = GetRenderHeight();
+// void stateflow_update_global_state(void) {
+//     int width = GetScreenWidth();
+//     int height = GetScreenHeight();
+//     // int width = GetRenderWidth();
+//     // int height = GetRenderHeight();
 
-    if (width < height) {
-        gs.virtual_width = 720;
-        gs.virtual_height = 1280;
-    } else {
-        gs.virtual_height = 720;
-        gs.virtual_width = 1280;
-    }
+//     if (width < height) {
+//         gs.virtual_width = 720;
+//         gs.virtual_height = 1280;
+//     } else {
+//         gs.virtual_height = 720;
+//         gs.virtual_width = 1280;
+//     }
 
-    float scaleX = (float)width / gs.virtual_width;
-    float scaleY = (float)height / gs.virtual_height;
-    float scale = fminf(scaleX, scaleY);
+//     float scaleX = (float)width / gs.virtual_width;
+//     float scaleY = (float)height / gs.virtual_height;
+//     float scale = fminf(scaleX, scaleY);
 
-    Vector2 offset =
-        (Vector2){.x = (width - (gs.virtual_width * scale)) * 0.5,
-                  .y = (height - (gs.virtual_height * scale)) * 0.5};
+//     Vector2 offset =
+//         (Vector2){.x = (width - (gs.virtual_width * scale)) * 0.5,
+//                   .y = (height - (gs.virtual_height * scale)) * 0.5};
 
-    gs.camera = (Camera2D){
-        .zoom = scale,
-        .target = (Vector2){0, 0},
-        .rotation = 0.0f,
-        .offset = offset
-    };
+//     gs.camera = (Camera2D){
+//         .zoom = scale,
+//         .target = (Vector2){0, 0},
+//         .rotation = 0.0f,
+//         .offset = offset
+//     };
 
-    SetMouseOffset(-offset.x, -offset.y);
-    SetMouseScale(1 / scale, 1 / scale);
-}
+//     SetMouseOffset(-offset.x, -offset.y);
+//     SetMouseScale(1 / scale, 1 / scale);
+// }
