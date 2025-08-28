@@ -2,41 +2,18 @@
 
 #include "stateflow.h"
 
-// void splash_screen_setup_virtual_resolution(void);
-
-// void splash_screen_setup_virtual_resolution(void) {
-//     int width = GetScreenWidth();
-//     int height = GetScreenHeight();
-//     // int width = GetRenderWidth();
-//     // int height = GetRenderHeight();
-
-//     if (width < height) {
-//         virtual_width = 450;
-//         virtual_height = 800;
-//     } else {
-//         virtual_width = 800;
-//         virtual_height = 450;
-//     }
-
-//     float scaleX = (float)width / virtual_width;
-//     float scaleY = (float)height / virtual_height;
-//     float scale = fminf(scaleX, scaleY);
-
-//     camera = (Camera2D){
-//         .zoom = scale,
-//         .rotation = 0,
-//         .target = (Vector2){0},
-//         .offset = {.x = (width - (virtual_width * scale)) * 0.5,
-//                             .y = (height - (virtual_height * scale)) * 0.5}
-//     };
-// }
-
 static u32 logo_x, logo_y;
 static u32 top_left, bottom_right;
 static u16 frame_count;
 static u8 state;
 static u8 letters_count;
 static RenderTexture2D target;
+static Rectangle source, dest;
+static float scale;
+
+static Color bg = DARKGRAY;
+
+void splash_screen_update_transforms();
 
 void splash_screen_load(GlobalState *gs) {
     target = LoadRenderTexture(800, 450);
@@ -46,6 +23,8 @@ void splash_screen_load(GlobalState *gs) {
     top_left = bottom_right = 16;
     logo_x = (target.texture.width / 2) - 128;
     logo_y = (target.texture.height / 2) - 128;
+
+    splash_screen_update_transforms();
 }
 
 void splash_screen_unload(GlobalState *gs) {
@@ -53,9 +32,7 @@ void splash_screen_unload(GlobalState *gs) {
 }
 
 ScreenChangeType splash_screen_update(GlobalState *gs) {
-    // splash_screen_setup_virtual_resolution();
-    logo_x = (target.texture.width / 2) - 128;
-    logo_y = (target.texture.height / 2) - 128;
+    splash_screen_update_transforms();
 
     switch (state) {
         case 0:
@@ -78,7 +55,7 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
             if (letters_count < 10 && frame_count / 12) {
                 letters_count++;
                 frame_count = 0;
-            } else if (frame_count > 200) {
+            } else if (frame_count > 100) {
                 gs->next_screen = &menu;
                 return SCREEN_CHANGE;
             }
@@ -90,7 +67,7 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
 void splash_screen_before_draw(GlobalState *gs) {
     BeginTextureMode(target);
 
-    ClearBackground(RAYWHITE);
+    ClearBackground(bg);
 
     switch (state) {
         case 0:
@@ -111,14 +88,14 @@ void splash_screen_before_draw(GlobalState *gs) {
         case 3:
             DrawRectangle(logo_x, logo_y, 256, 256, BLACK);
             DrawRectangle(logo_x + 16, logo_y + 16, 256 - (2 * 16),
-                          256 - (2 * 16), RAYWHITE);
+                          256 - (2 * 16), bg);
 
             DrawText(TextSubtext("raylib", 0, letters_count),
                      (target.texture.width / 2) - 44,
                      (target.texture.height / 2) + 48, 50, BLACK);
 
             if (frame_count > 20)
-                DrawText("powered by", logo_x, logo_y - 27, 20, DARKGRAY);
+                DrawText("powered by", logo_x, logo_y - 27, 20, LIGHTGRAY);
             break;
     }
 
@@ -126,20 +103,27 @@ void splash_screen_before_draw(GlobalState *gs) {
 }
 
 void splash_screen_draw(GlobalState *gs) {
-    ClearBackground(RAYWHITE);
+    ClearBackground(bg);
 
+    DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
+}
+
+void splash_screen_update_transforms() {
     int width = GetScreenWidth();
     int height = GetScreenHeight();
     float scale_x = (float)width / target.texture.width;
     float scale_y = (float)height / target.texture.height;
-    float scale = fminf(scale_x, scale_y);
+    scale = fminf(scale_x, scale_y);
 
-    Rectangle source = {0, 0, target.texture.width, -target.texture.height};
-    Rectangle dest = {.width = target.texture.width,
-                      .height = target.texture.height};
+    scale = CLAMP_MIN(scale, 0.6);
+
+    source = (Rectangle){0, 0, target.texture.width, -target.texture.height};
+
+    dest = (Rectangle){.width = target.texture.width * scale,
+                       .height = target.texture.height * scale};
+
     dest.x = (width - dest.width) / 2;
     dest.y = (height - dest.height) / 2;
-    DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
 }
 
 Screen splash_screen = (Screen){.load = splash_screen_load,

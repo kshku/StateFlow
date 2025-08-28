@@ -15,3 +15,7 @@ typedef int64_t i64;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIX(a, b) ((a) < (b) ? (a) : (b))
+
+#define CLAMP(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
+#define CLAMP_MIN(x, a) ((x) < (a) ? (a) : (x))
+#define CLAMP_MAX(x, a) ((x) > (a) ? (a) : (x))

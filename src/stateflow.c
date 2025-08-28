@@ -11,16 +11,12 @@ static GlobalState gs = {0};
 
 void stateflow_change_screen(void);
 
-// void stateflow_update_global_state(void);
-
 void stateflow_initialize(void) {
     InitWindow(800, 600, STATEFLOW_NAME);
 
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     SetTargetFPS(60);
-
-    // stateflow_update_global_state();
 
     state.current_screen = &splash_screen;
     state.current_screen->load(&gs);
@@ -49,10 +45,11 @@ void stateflow_run(void) {
 
         BeginDrawing();
         state.current_screen->draw(&gs);
-        DrawText(
-            TextFormat("(%d, %d)\n(%d, %d)", GetScreenWidth(),
-                       GetScreenHeight(), GetRenderWidth(), GetRenderHeight()),
-            50, 50, 50, GREEN);
+        // DrawText(
+        //     TextFormat("(%d, %d)\n(%d, %d)", GetScreenWidth(),
+        //                GetScreenHeight(), GetRenderWidth(),
+        //                GetRenderHeight()),
+        //     50, 50, 50, GREEN);
         EndDrawing();
     }
 }

@@ -35,6 +35,6 @@ elseif(TARGET_PLATFORM STREQUAL "Android")
     )
 endif()
 
-target_include_directories(${APP_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/raylib/src)
+target_include_directories(${APP_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/raylib/src ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(utils)
