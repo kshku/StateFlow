@@ -10,7 +10,7 @@ typedef struct TextBox {
         char *text;
         Color color;
         Font font;
-        int font_size;
+        i32 font_size;
 } TextBox;
 
 void text_box_create(TextBox *tb, Rectangle rect);

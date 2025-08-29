@@ -1,4 +1,4 @@
-#include <math.h>
+#include <raymath.h>
 
 #include "stateflow.h"
 
@@ -13,7 +13,7 @@ static float scale;
 
 static Color bg = DARKGRAY;
 
-void splash_screen_update_transforms();
+static void splash_screen_update_transforms(void);
 
 void splash_screen_load(GlobalState *gs) {
     target = LoadRenderTexture(800, 450);
@@ -108,9 +108,9 @@ void splash_screen_draw(GlobalState *gs) {
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
 }
 
-void splash_screen_update_transforms() {
-    int width = GetScreenWidth();
-    int height = GetScreenHeight();
+static void splash_screen_update_transforms(void) {
+    i32 width = GetScreenWidth();
+    i32 height = GetScreenHeight();
     float scale_x = (float)width / target.texture.width;
     float scale_y = (float)height / target.texture.height;
     scale = fminf(scale_x, scale_y);

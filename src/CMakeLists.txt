@@ -2,6 +2,7 @@ set(SRCS
     stateflow.h
     stateflow.c
     splash_screen.c
+    editor.c
     menu.c
 )
 

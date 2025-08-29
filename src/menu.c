@@ -1,4 +1,4 @@
-#include <math.h>
+#include <raymath.h>
 
 #include "stateflow.h"
 #include "utils/button.h"
@@ -14,9 +14,9 @@ static float scale;
 
 static Color bg = DARKGRAY;
 
-void menu_update_transforms();
+static void menu_update_transforms(void);
 
-void menu_update_mouse_position(Vector2 *mpos);
+static void menu_update_mouse_position(Vector2 *mpos);
 
 void menu_load(GlobalState *gs) {
     target = LoadRenderTexture(800, 800);
@@ -69,7 +69,7 @@ ScreenChangeType menu_update(GlobalState *gs) {
     menu_update_mouse_position(&mpos);
 
     if (button_update(&dfa, mpos)) {
-        gs->next_screen = &splash_screen;
+        gs->next_screen = &editor;
         return SCREEN_CHANGE;
     }
 
@@ -106,9 +106,9 @@ void menu_draw(GlobalState *gs) {
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
 }
 
-void menu_update_transforms() {
-    int width = GetScreenWidth();
-    int height = GetScreenHeight();
+static void menu_update_transforms(void) {
+    i32 width = GetScreenWidth();
+    i32 height = GetScreenHeight();
     float scale_x = (float)width / target.texture.width;
     float scale_y = (float)height / target.texture.height;
 
@@ -123,7 +123,7 @@ void menu_update_transforms() {
     dest.y = (height - dest.height) / 2;
 }
 
-void menu_update_mouse_position(Vector2 *mpos) {
+static void menu_update_mouse_position(Vector2 *mpos) {
     mpos->x -= dest.x;
     mpos->y -= dest.y;
     mpos->x /= scale;

@@ -1,6 +1,6 @@
 #include "stateflow.h"
 
-#include <math.h>
+#include <raymath.h>
 
 typedef struct State {
         Screen *current_screen;
@@ -9,7 +9,7 @@ typedef struct State {
 static State state = {0};
 static GlobalState gs = {0};
 
-void stateflow_change_screen(void);
+static void stateflow_change_screen(void);
 
 void stateflow_initialize(void) {
     InitWindow(800, 600, STATEFLOW_NAME);
@@ -60,7 +60,7 @@ int main(void) {
     stateflow_shutdown();
 }
 
-void stateflow_change_screen(void) {
+static void stateflow_change_screen(void) {
     if (!gs.next_screen) {
         // TraceLog(LOG_ERROR, "Next screen is not given!");
         return;
@@ -73,10 +73,10 @@ void stateflow_change_screen(void) {
 }
 
 // void stateflow_update_global_state(void) {
-//     int width = GetScreenWidth();
-//     int height = GetScreenHeight();
-//     // int width = GetRenderWidth();
-//     // int height = GetRenderHeight();
+//     i32 width = GetScreenWidth();
+//     i32 height = GetScreenHeight();
+//     // i32 width = GetRenderWidth();
+//     // i32 height = GetRenderHeight();
 
 //     if (width < height) {
 //         gs.virtual_width = 720;

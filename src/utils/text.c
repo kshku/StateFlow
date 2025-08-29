@@ -1,6 +1,6 @@
 #include "text.h"
 
-#include <math.h>
+#include <raymath.h>
 #include <stdlib.h>
 #include <string.h>
 
