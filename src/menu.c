@@ -37,9 +37,19 @@ void menu_load(GlobalState *gs) {
     button_set_text_and_font(&nfa, "Create new NFA", 14, GetFontDefault());
     button_set_text_and_font(&load, "Load State Machine", 18, GetFontDefault());
 
-    button_set_color(&dfa, BLUE, GREEN);
-    button_set_color(&nfa, BLUE, GREEN);
-    button_set_color(&load, BLUE, GREEN);
+    ButtonColors colors = {.text = GREEN,
+                           .normal = BLUE,
+                           .down = DARKBLUE,
+                           .disabled = GRAY,
+                           .disabled_text = Fade(GREEN, 0.5),
+                           .hovered = VIOLET};
+
+    // button_set_color(&dfa, BLUE, GREEN);
+    // button_set_color(&nfa, BLUE, GREEN);
+    // button_set_color(&load, BLUE, GREEN);
+    button_set_colors(&dfa, colors);
+    button_set_colors(&nfa, colors);
+    button_set_colors(&load, colors);
 
     menu_update_transforms();
 }
@@ -64,13 +74,15 @@ ScreenChangeType menu_update(GlobalState *gs) {
     }
 
     if (button_update(&nfa, mpos)) {
-        gs->next_screen = &splash_screen;
-        return SCREEN_CHANGE;
+        button_disable(&dfa);
+        // gs->next_screen = &splash_screen;
+        // return SCREEN_CHANGE;
     }
 
     if (button_update(&load, mpos)) {
-        gs->next_screen = &splash_screen;
-        return SCREEN_CHANGE;
+        button_enable(&dfa);
+        // gs->next_screen = &splash_screen;
+        // return SCREEN_CHANGE;
     }
 
     return SCREEN_SAME;
@@ -89,7 +101,7 @@ void menu_before_draw(GlobalState *gs) {
 }
 
 void menu_draw(GlobalState *gs) {
-    ClearBackground(BLACK);
+    ClearBackground(bg);
 
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
 }
