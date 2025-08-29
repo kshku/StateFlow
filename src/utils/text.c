@@ -13,7 +13,7 @@ void text_box_create(TextBox *tb, Rectangle rect) {
 
 void text_box_set_text_and_font(TextBox *tb, const char *text, u32 len,
                                 Font font) {
-    char *new_text = (char *)realloc(tb->text, len + 1);
+    char *new_text = (char *)realloc(tb->text, (len + 1) * sizeof(char));
     if (!new_text) return;
     strncpy(new_text, text, len);
     new_text[len] = 0;

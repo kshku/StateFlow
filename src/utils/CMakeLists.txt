@@ -5,6 +5,8 @@ set(SRCS
     button.c
     darray.h
     darray.c
+    node.h
+    node.c
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})

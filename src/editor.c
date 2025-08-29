@@ -2,6 +2,7 @@
 #include <raymath.h>
 
 #include "stateflow.h"
+#include "utils/node.h"
 
 static Camera2D camera;
 
@@ -11,6 +12,8 @@ static KeyboardKey navigation_keys[][4] = {
     {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN},
     {   KEY_H,     KEY_L,  KEY_K,    KEY_J},
 };
+
+static Node node;
 
 static void editor_draw_grid(float thick, float spacing, Color color);
 
@@ -23,16 +26,29 @@ void editor_load(GlobalState *gs) {
         .rotation = 0.0f,
         .zoom = 1.0f
     };
+
+    node_create(&node, (Vector2){0, 0});
+    node_set_font(&node, GetFontDefault(), 32);
+    node_set_colors(&node, (NodeColors){.font = GREEN,
+                                        .normal = BLUE,
+                                        .hovered = DARKBLUE,
+                                        .selected = VIOLET});
+    node_set_name(&node, "Test Node", 9);
 }
 
 void editor_unload(GlobalState *gs) {
+    node_destroy(&node);
 }
 
 ScreenChangeType editor_update(GlobalState *gs) {
+    editor_update_world();
+
     Vector2 mpos = GetMousePosition();
     mpos = GetScreenToWorld2D(mpos, camera);
 
-    editor_update_world();
+    if (node_update(&node, mpos)) {
+        node.locked ? node_unlock_selected(&node) : node_lock_selected(&node);
+    }
 
     return SCREEN_SAME;
 }
@@ -44,6 +60,8 @@ void editor_draw(GlobalState *gs) {
     editor_draw_grid(1.0f, 100.0f, GRAY);
 
     DrawText("DFA EDITOR!", 5000, 200, 32, WHITE);
+
+    node_draw(&node);
 
     EndMode2D();
 }
@@ -80,8 +98,8 @@ static void editor_update_world(void) {
     u32 length = (sizeof(navigation_keys) / sizeof(navigation_keys[0]));
     for (u32 i = 0; i < length; ++i) {
         if (IsKeyDown(navigation_keys[i][0])) camera.target.x -= 10;
-        if (IsKeyDown(navigation_keys[i][1])) camera.target.y += 10;
-        if (IsKeyDown(navigation_keys[i][2])) camera.target.x += 10;
+        if (IsKeyDown(navigation_keys[i][1])) camera.target.x += 10;
+        if (IsKeyDown(navigation_keys[i][2])) camera.target.y += 10;
         if (IsKeyDown(navigation_keys[i][3])) camera.target.y -= 10;
     }
 
