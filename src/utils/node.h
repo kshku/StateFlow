@@ -6,16 +6,16 @@
 
 typedef enum NodeState {
     NODE_STATE_NORMAL,
-    NODE_STATE_SELECTED,
+    NODE_STATE_DOWN,
+    NODE_STATE_HOVERED,
     NODE_STATE_HIGHLIGHTED,
-    NODE_STATE_HOVERED
 } NodeState;
 
 typedef struct NodeColors {
         Color normal;
-        Color selected;
+        Color text;
+        Color down;
         Color hovered;
-        Color font;
         Color highlighted;
 } NodeColors;
 
@@ -25,12 +25,49 @@ typedef struct Node {
         float font_size;
         Vector2 center;
         Vector2 position;
-        NodeColors colors;
         float radius;
         NodeState state;
-        bool locked;
+        NodeColors colors;
+        bool editing;
         bool moving;
+        bool locked;
+        bool selected;
 } Node;
+
+typedef enum NodeStatus {
+    NODE_NOT_AFFECTED,
+    NODE_HOVERED,
+    NODE_MOVING,
+    NODE_CLICKED,
+} NodeStatus;
+
+// typedef enum NodeState {
+//     NODE_STATE_NORMAL,
+//     NODE_STATE_SELECTED,
+//     NODE_STATE_HIGHLIGHTED,
+//     NODE_STATE_HOVERED
+// } NodeState;
+
+// typedef struct NodeColors {
+//         Color normal;
+//         Color selected;
+//         Color hovered;
+//         Color font;
+//         Color highlighted;
+// } NodeColors;
+
+// typedef struct Node {
+//         char *name;
+//         Font font;
+//         float font_size;
+//         Vector2 center;
+//         Vector2 position;
+//         NodeColors colors;
+//         float radius;
+//         NodeState state;
+//         bool locked;
+//         bool moving;
+// } Node;
 
 void node_create(Node *n, Vector2 center);
 
@@ -44,9 +81,12 @@ void node_set_colors(Node *n, NodeColors colors);
 
 void node_draw(Node *n);
 
-void node_lock_selected(Node *n);
-void node_unlock_selected(Node *n);
+NodeStatus node_update(Node *n, Vector2 mpos);
 
-void node_toggle_highlight(Node *n);
+void node_lock_state(Node *n, NodeState state);
+void node_unlock_state(Node *n);
 
-bool node_update(Node *n, Vector2 mpos);
+// void node_lock_selected(Node *n);
+// void node_unlock_selected(Node *n);
+
+// void node_toggle_highlight(Node *n);

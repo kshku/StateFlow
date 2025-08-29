@@ -7,6 +7,8 @@ set(SRCS
     darray.c
     node.h
     node.c
+    # input.h
+    # input.c
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})

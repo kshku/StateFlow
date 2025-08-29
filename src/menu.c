@@ -69,8 +69,8 @@ ScreenChangeType menu_update(GlobalState *gs) {
     menu_update_mouse_position(&mpos);
 
     if (button_update(&dfa, mpos)) {
-        // gs->next_screen = &editor;
-        gs->next_screen = &splash_screen;
+        gs->next_screen = &editor;
+        // gs->next_screen = &splash_screen;
         return SCREEN_CHANGE;
     }
 

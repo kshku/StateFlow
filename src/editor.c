@@ -17,10 +17,10 @@ static KeyboardKey navigation_keys[][4] = {
     {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN},
     {   KEY_H,     KEY_L,  KEY_K,    KEY_J},
 };
-static NodeColors node_colors = {.font = GREEN,
+static NodeColors node_colors = {.text = GREEN,
                                  .normal = BLUE,
                                  .hovered = DARKBLUE,
-                                 .selected = VIOLET,
+                                 .down = VIOLET,
                                  .highlighted = YELLOW};
 
 static Node *nodes;
@@ -32,6 +32,8 @@ static void editor_update_world(void);
 static void editor_draw_editor(Node *node);
 
 static void editor_update_transforms(void);
+
+static bool editor_update_nodes(Vector2 mpos);
 
 void editor_load(GlobalState *gs) {
     camera = (Camera2D){
@@ -59,24 +61,9 @@ ScreenChangeType editor_update(GlobalState *gs) {
     Vector2 mpos = GetMousePosition();
     mpos = GetScreenToWorld2D(mpos, camera);
 
-    bool clicked = false;
+    bool handled = editor_update_nodes(mpos);
 
-    u64 length = darray_get_size(nodes);
-    selected = NULL;
-    for (u32 i = 0; i < length; ++i) {
-        if (nodes[i].state == NODE_STATE_SELECTED) {
-            selected = &nodes[i];
-            break;
-        }
-        if (node_update(&nodes[i], mpos)) {
-            node_lock_selected(&nodes[i]);
-            selected = &nodes[i];
-            clicked = true;
-            break;
-        }
-    }
-
-    if (!clicked && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+    if (!handled && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
         Node node;
         node_create(&node, mpos);
         node_set_colors(&node, node_colors);
@@ -100,8 +87,10 @@ void editor_draw(GlobalState *gs) {
 
     EndMode2D();
 
-    if (selected)
-        DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
+    DrawFPS(10, 10);
+    // if (selected)
+    //     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f,
+    //     WHITE);
 }
 
 void editor_before_draw(GlobalState *gs) {
@@ -186,6 +175,49 @@ static void editor_update_world(void) {
 
 static void editor_draw_editor(Node *node) {
     DrawText("Testing the thing!", 50, 50, 20, WHITE);
+}
+
+static bool editor_update_nodes(Vector2 mpos) {
+    // Update the selected node only if exists
+    bool handled = false;
+    if (selected) {
+        switch (node_update(selected, mpos)) {
+            case NODE_NOT_AFFECTED:
+                if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                    node_unlock_state(selected);
+                    selected = NULL;
+                    handled = true;
+                    goto all_nodes;
+                }
+                break;
+            case NODE_CLICKED:
+            case NODE_MOVING:
+            case NODE_HOVERED:
+            default:
+                return true;
+        }
+
+        return false;
+    }
+
+all_nodes:
+    u64 length = darray_get_size(nodes);
+    // Loop in reverse order, since while drawing last node is drawn on top
+    for (i32 i = length - 1; i >= 0; --i) {
+        switch (node_update(&nodes[i], mpos)) {
+            case NODE_NOT_AFFECTED:
+                break;
+            case NODE_CLICKED:
+            case NODE_MOVING:
+                selected = &nodes[i];
+                node_lock_state(selected, NODE_STATE_DOWN);
+            case NODE_HOVERED:
+            default:
+                return true;
+        }
+    }
+
+    return false || handled;
 }
 
 Screen editor = {.load = editor_load,
