@@ -7,6 +7,7 @@
 typedef enum NodeState {
     NODE_STATE_NORMAL,
     NODE_STATE_SELECTED,
+    NODE_STATE_HIGHLIGHTED,
     NODE_STATE_HOVERED
 } NodeState;
 
@@ -15,6 +16,7 @@ typedef struct NodeColors {
         Color selected;
         Color hovered;
         Color font;
+        Color highlighted;
 } NodeColors;
 
 typedef struct Node {
@@ -27,6 +29,7 @@ typedef struct Node {
         float radius;
         NodeState state;
         bool locked;
+        bool moving;
 } Node;
 
 void node_create(Node *n, Vector2 center);
@@ -43,5 +46,7 @@ void node_draw(Node *n);
 
 void node_lock_selected(Node *n);
 void node_unlock_selected(Node *n);
+
+void node_toggle_highlight(Node *n);
 
 bool node_update(Node *n, Vector2 mpos);

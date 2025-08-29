@@ -28,4 +28,4 @@ struct Screen {
 
 extern Screen splash_screen;
 extern Screen menu;
-extern Screen editor;
+// extern Screen editor;
