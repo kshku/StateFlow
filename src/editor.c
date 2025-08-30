@@ -3,13 +3,17 @@
 
 #include "stateflow.h"
 #include "utils/darray.h"
+#include "utils/input.h"
 #include "utils/node.h"
+#include "utils/text.h"
 
 static Camera2D camera;
 static Node *selected;
 static RenderTexture2D target;
 static float scale;
 static Rectangle source, dest;
+static TextBox alphabet;
+static InputBox alphabet_input;
 
 static Color bg = DARKGRAY;
 static KeyboardKey navigation_keys[][4] = {
@@ -17,6 +21,7 @@ static KeyboardKey navigation_keys[][4] = {
     {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN},
     {   KEY_H,     KEY_L,  KEY_K,    KEY_J},
 };
+static bool handle_keys = true;
 static NodeColors node_colors = {.text = GREEN,
                                  .normal = BLUE,
                                  .hovered = DARKBLUE,
@@ -29,11 +34,11 @@ static void editor_draw_grid(float thick, float spacing, Color color);
 
 static void editor_update_world(void);
 
-static void editor_draw_editor(Node *node);
+static Vector2 editor_get_transformed_mouse_position(Vector2 mpos);
 
 static void editor_update_transforms(void);
 
-static bool editor_update_nodes(Vector2 mpos);
+static bool editor_update_nodes(Vector2 mpos, Vector2 delta);
 
 void editor_load(GlobalState *gs) {
     camera = (Camera2D){
@@ -44,12 +49,24 @@ void editor_load(GlobalState *gs) {
     };
     selected = NULL;
 
-    target = LoadRenderTexture(400, 800);
+    target = LoadRenderTexture(400, 100);
 
     nodes = darray_create(Node);
+
+    text_box_create(&alphabet, (Rectangle){20, 10, 50, 30});
+    text_box_set_color(&alphabet, WHITE);
+    text_box_set_text_and_font(&alphabet, "Alphabet: ", 11, GetFontDefault());
+
+    input_box_create(&alphabet_input, (Rectangle){20 + 50 + 20, 10, 150, 30},
+                     100);
+    input_box_set_colors(&alphabet_input,
+                         (InputBoxColors){.box = BLACK, .text = WHITE});
+    input_box_set_font(&alphabet_input, GetFontDefault());
 }
 
 void editor_unload(GlobalState *gs) {
+    text_box_destroy(&alphabet);
+    input_box_destroy(&alphabet_input);
     darray_destroy(nodes);
     UnloadRenderTexture(target);
 }
@@ -58,12 +75,21 @@ ScreenChangeType editor_update(GlobalState *gs) {
     editor_update_world();
     editor_update_transforms();
 
+    // NOTE: Screen coordinates
+    handle_keys = !input_box_update(
+        &alphabet_input,
+        editor_get_transformed_mouse_position(GetMousePosition()));
+
     Vector2 mpos = GetMousePosition();
     mpos = GetScreenToWorld2D(mpos, camera);
 
-    bool handled = editor_update_nodes(mpos);
+    Vector2 delta = GetMouseDelta();
+    delta = Vector2Scale(delta, 1.0f / camera.zoom);
+    // TraceLog(LOG_INFO, "Delta: (%f, %f)", delta.x, delta.y);
 
-    if (!handled && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+    bool handled = editor_update_nodes(mpos, delta);
+
+    if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) {
         Node node;
         node_create(&node, mpos);
         node_set_colors(&node, node_colors);
@@ -84,23 +110,26 @@ void editor_draw(GlobalState *gs) {
 
     u64 length = darray_get_size(nodes);
     for (u32 i = 0; i < length; ++i) node_draw(&nodes[i]);
+    if (selected) node_draw(selected);
 
     EndMode2D();
 
-    DrawFPS(10, 10);
+    DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
+    // DrawFPS(10, 10);
     // if (selected)
     //     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f,
     //     WHITE);
 }
 
 void editor_before_draw(GlobalState *gs) {
-    if (!selected) return;
+    // if (!selected) return;
 
     BeginTextureMode(target);
 
     ClearBackground(GRAY);
 
-    editor_draw_editor(selected);
+    text_box_draw(&alphabet);
+    input_box_draw(&alphabet_input);
 
     EndTextureMode();
 }
@@ -119,7 +148,7 @@ static void editor_update_transforms(void) {
     dest = (Rectangle){.width = target.texture.width * scale,
                        .height = target.texture.height * scale};
     dest.x = 0;
-    dest.y = (height - dest.height) / 2;
+    dest.y = 0;
 }
 
 static void editor_draw_grid(float thick, float spacing, Color color) {
@@ -148,15 +177,17 @@ static void editor_draw_grid(float thick, float spacing, Color color) {
 }
 
 static void editor_update_world(void) {
-    u32 length = (sizeof(navigation_keys) / sizeof(navigation_keys[0]));
-    for (u32 i = 0; i < length; ++i) {
-        if (IsKeyDown(navigation_keys[i][0])) camera.target.x -= 10;
-        if (IsKeyDown(navigation_keys[i][1])) camera.target.x += 10;
-        if (IsKeyDown(navigation_keys[i][2])) camera.target.y += 10;
-        if (IsKeyDown(navigation_keys[i][3])) camera.target.y -= 10;
+    if (handle_keys) {
+        u32 length = (sizeof(navigation_keys) / sizeof(navigation_keys[0]));
+        for (u32 i = 0; i < length; ++i) {
+            if (IsKeyDown(navigation_keys[i][0])) camera.target.x -= 10;
+            if (IsKeyDown(navigation_keys[i][1])) camera.target.x += 10;
+            if (IsKeyDown(navigation_keys[i][2])) camera.target.y -= 10;
+            if (IsKeyDown(navigation_keys[i][3])) camera.target.y += 10;
+        }
     }
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
         Vector2 delta = GetMouseDelta();
         delta = Vector2Scale(delta, -1.0f / camera.zoom);
         camera.target = Vector2Add(camera.target, delta);
@@ -173,21 +204,15 @@ static void editor_update_world(void) {
     }
 }
 
-static void editor_draw_editor(Node *node) {
-    DrawText("Testing the thing!", 50, 50, 20, WHITE);
-}
-
-static bool editor_update_nodes(Vector2 mpos) {
+static bool editor_update_nodes(Vector2 mpos, Vector2 delta) {
     // Update the selected node only if exists
-    bool handled = false;
     if (selected) {
-        switch (node_update(selected, mpos)) {
+        switch (node_update(selected, mpos, delta)) {
             case NODE_NOT_AFFECTED:
                 if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
                     node_unlock_state(selected);
                     selected = NULL;
-                    handled = true;
-                    goto all_nodes;
+                    return true;
                 }
                 break;
             case NODE_CLICKED:
@@ -200,11 +225,16 @@ static bool editor_update_nodes(Vector2 mpos) {
         return false;
     }
 
-all_nodes:
     u64 length = darray_get_size(nodes);
+    bool handled = false;
     // Loop in reverse order, since while drawing last node is drawn on top
     for (i32 i = length - 1; i >= 0; --i) {
-        switch (node_update(&nodes[i], mpos)) {
+        if (handled) {
+            node_set_state(&nodes[i], NODE_STATE_NORMAL);
+            continue;
+        }
+
+        switch (node_update(&nodes[i], mpos, delta)) {
             case NODE_NOT_AFFECTED:
                 break;
             case NODE_CLICKED:
@@ -213,11 +243,16 @@ all_nodes:
                 node_lock_state(selected, NODE_STATE_DOWN);
             case NODE_HOVERED:
             default:
-                return true;
+                handled = true;
         }
     }
 
-    return false || handled;
+    return handled;
+}
+
+static Vector2 editor_get_transformed_mouse_position(Vector2 mpos) {
+    return (Vector2){.x = (mpos.x - dest.x) / scale,
+                     .y = (mpos.y - dest.y) / scale};
 }
 
 Screen editor = {.load = editor_load,

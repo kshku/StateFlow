@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static NodeStatus node_update_editing(Node *n, Vector2 mpos);
+static NodeStatus node_update_editing(Node *n, Vector2 mpos, Vector2 delta);
 
 static NodeStatus node_update_animating(Node *n);
 
@@ -25,6 +25,7 @@ void node_create(Node *n, Vector2 center) {
     n->moving = false;
     n->locked = false;
     n->selected = false;
+    n->pressed = false;
 }
 
 void node_destroy(Node *n) {
@@ -85,8 +86,9 @@ void node_draw(Node *n) {
                n->colors.text);
 }
 
-NodeStatus node_update(Node *n, Vector2 mpos) {
-    return n->editing ? node_update_editing(n, mpos) : node_update_animating(n);
+NodeStatus node_update(Node *n, Vector2 mpos, Vector2 delta) {
+    return n->editing ? node_update_editing(n, mpos, delta)
+                      : node_update_animating(n);
 }
 
 // bool node_update(Node *n, Vector2 mpos) {
@@ -143,30 +145,37 @@ NodeStatus node_update(Node *n, Vector2 mpos) {
 //                                                   : NODE_STATE_HIGHLIGHTED;
 // }
 
-static NodeStatus node_update_editing(Node *n, Vector2 mpos) {
+static NodeStatus node_update_editing(Node *n, Vector2 mpos, Vector2 delta) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && (delta.x != 0 || delta.y != 0)
+        && n->selected) {
+        n->moving = true;
+        n->center = Vector2Add(delta, n->center);
+        n->position = Vector2Add(delta, n->position);
+        return NODE_MOVING;
+    }
+
     if (CheckCollisionPointCircle(mpos, n->center, n->radius)) {
         if (!n->locked) n->state = NODE_STATE_HOVERED;
 
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) n->pressed = true;
+
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             if (!n->locked) n->state = NODE_STATE_DOWN;
-            Vector2 delta = GetMouseDelta();
-            if ((delta.x != 0 || delta.y != 0) && n->selected) {
-                n->moving = true;
-                n->center = Vector2Add(delta, n->center);
-                n->position = Vector2Add(delta, n->position);
-                return NODE_MOVING;
-            }
-        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && n->pressed) {
             if (n->moving) n->moving = false;
             else {
                 n->selected = true;
+                n->pressed = false;
                 return NODE_CLICKED;
             }
         }
 
         return NODE_HOVERED;
     }
-    n->selected = false;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) n->selected = false;
+
+    n->pressed = false;
+    n->moving = false;
 
     if (!n->locked) n->state = NODE_STATE_NORMAL;
 
@@ -183,4 +192,8 @@ void node_lock_state(Node *n, NodeState state) {
 
 void node_unlock_state(Node *n) {
     n->locked = false;
+}
+
+void node_set_state(Node *n, NodeState state) {
+    n->state = state;
 }

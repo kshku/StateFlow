@@ -32,6 +32,7 @@ typedef struct Node {
         bool moving;
         bool locked;
         bool selected;
+        bool pressed;
 } Node;
 
 typedef enum NodeStatus {
@@ -81,12 +82,9 @@ void node_set_colors(Node *n, NodeColors colors);
 
 void node_draw(Node *n);
 
-NodeStatus node_update(Node *n, Vector2 mpos);
+NodeStatus node_update(Node *n, Vector2 mpos, Vector2 delta);
 
 void node_lock_state(Node *n, NodeState state);
 void node_unlock_state(Node *n);
 
-// void node_lock_selected(Node *n);
-// void node_unlock_selected(Node *n);
-
-// void node_toggle_highlight(Node *n);
+void node_set_state(Node *n, NodeState state);

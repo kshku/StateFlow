@@ -25,6 +25,7 @@ typedef struct Button {
         TextBox text;
         ButtonColors colors;
         ButtonState state;
+        bool pressed;
 } Button;
 
 void button_create(Button *btn, Rectangle rect);

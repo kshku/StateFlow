@@ -7,6 +7,7 @@ void button_create(Button *btn, Rectangle rect) {
     btn->colors.disabled = WHITE;
     text_box_create(&btn->text, rect);
     btn->state = BUTTON_STATE_NORMAL;
+    btn->pressed = false;
 }
 
 void button_destroy(Button *btn) {
@@ -49,10 +50,12 @@ bool button_update(Button *btn, Vector2 mpos) {
     if (btn->state == BUTTON_STATE_DISABLED) return false;
     // Returns true if clicked
     if (CheckCollisionPointRec(mpos, btn->text.rect)) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) btn->pressed = true;
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             btn->state = BUTTON_STATE_DOWN;
-        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && btn->pressed) {
             btn->state = BUTTON_STATE_HOVERED;
+            btn->pressed = false;
             return true;
         } else {
             btn->state = BUTTON_STATE_HOVERED;
@@ -61,6 +64,7 @@ bool button_update(Button *btn, Vector2 mpos) {
         return false;
     }
 
+    btn->pressed = false;
     btn->state = BUTTON_STATE_NORMAL;
 
     return false;
