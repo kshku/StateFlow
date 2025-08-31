@@ -32,3 +32,5 @@ typedef enum Input {
 
 #define IS_INPUT_HANDLED(handled, input) ((handled) & (input))
 #define MARK_INPUT_HANDLED(handled, input) ((handled) | (input))
+
+#define UNUSED(x) ((void)x)

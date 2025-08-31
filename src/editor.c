@@ -2,6 +2,7 @@
 #include <raymath.h>
 
 #include "stateflow.h"
+#include "utils/checkbox.h"
 #include "utils/darray.h"
 #include "utils/input.h"
 #include "utils/node.h"
@@ -12,9 +13,25 @@ static Node *selected;
 static RenderTexture2D target;
 static float scale;
 static Rectangle source, dest;
-static TextBox alphabet;
-static InputBox alphabet_input;
-static InputBox node_name;
+static Node *nodes;  // Darray
+
+enum { INPUT_BOX_ALPHABET = 0, INPUT_BOX_NODE_NAME, INPUT_BOX_MAX };
+
+static InputBox input_boxes[INPUT_BOX_MAX];
+
+enum { CHECK_BOX_INITIAL_STATE = 0, CHECK_BOX_ACCEPTING_STATE, CHECK_BOX_MAX };
+
+static CheckBox check_boxes[CHECK_BOX_MAX];
+
+enum {
+    TEXT_BOX_ALPHABET = 0,
+    TEXT_BOX_NODE_NAME,
+    TEXT_BOX_INITIAL_STATE,
+    TEXT_BOX_ACCEPTING_STATE,
+    TEXT_BOX_MAX
+};
+
+static TextBox text_boxes[TEXT_BOX_MAX];
 
 static Color bg = DARKGRAY;
 static KeyboardKey navigation_keys[][4] = {
@@ -27,8 +44,6 @@ static NodeColors node_colors = {.text = GREEN,
                                  .hovered = DARKBLUE,
                                  .down = VIOLET,
                                  .highlighted = YELLOW};
-
-static Node *nodes;
 
 static void editor_draw_grid(float thick, float spacing, Color color);
 
@@ -53,25 +68,55 @@ void editor_load(GlobalState *gs) {
 
     nodes = darray_create(Node);
 
-    text_box_create(&alphabet, (Rectangle){20, 10, 50, 10});
-    text_box_set_color(&alphabet, WHITE);
-    text_box_set_text_and_font(&alphabet, "Alphabet: ", 11, GetFontDefault());
+    struct {
+            Rectangle rect;
+            const char *name;
+            u32 len;
+    } text_params[TEXT_BOX_MAX] = {
+        { {20, 10, 50, 10},       "Alphabet:",  9},
+        { {10, 30, 30, 10},            "Name",  4},
+        {{160, 30, 60, 11},   "Initial state", 13},
+        {{250, 30, 80, 11}, "Accepting state", 15},
+    };
 
-    input_box_create(&alphabet_input, (Rectangle){20 + 50 + 20, 10, 150, 10},
-                     100);
-    input_box_set_colors(&alphabet_input,
-                         (InputBoxColors){.box = BLACK, .text = WHITE});
-    input_box_set_font(&alphabet_input, GetFontDefault());
+    for (i32 i = 0; i < TEXT_BOX_MAX; ++i) {
+        text_box_create(&text_boxes[i], text_params[i].rect);
+        text_box_set_color(&text_boxes[i], WHITE);
+        text_box_set_text_and_font(&text_boxes[i], text_params[i].name,
+                                   text_params[i].len, GetFontDefault());
+    }
 
-    input_box_create(&node_name, (Rectangle){20, 30, 100, 10}, 100);
-    input_box_set_colors(&node_name,
-                         (InputBoxColors){.box = BLACK, .text = WHITE});
-    input_box_set_font(&node_name, GetFontDefault());
+    struct {
+            Rectangle rect;
+            u32 max_len;
+    } input_params[INPUT_BOX_MAX] = {
+        {{90, 10, 150, 10}, 100},
+        {{50, 30, 100, 10},  15}
+    };
+
+    for (i32 i = 0; i < INPUT_BOX_MAX; ++i) {
+        input_box_create(&input_boxes[i], input_params[i].rect,
+                         input_params[i].max_len);
+        input_box_set_colors(&input_boxes[i],
+                             (InputBoxColors){.box = BLACK, .text = WHITE});
+        input_box_set_font(&input_boxes[i], GetFontDefault());
+    }
+
+    Rectangle check_box_rects[CHECK_BOX_MAX] = {
+        {230, 30, 10, 10},
+        {340, 30, 10, 10}
+    };
+
+    for (i32 i = 0; i < CHECK_BOX_MAX; ++i) {
+        check_box_create(&check_boxes[i], check_box_rects[i]);
+        check_box_set_color(&check_boxes[i], GREEN);
+    }
 }
 
 void editor_unload(GlobalState *gs) {
-    text_box_destroy(&alphabet);
-    input_box_destroy(&alphabet_input);
+    for (i32 i = 0; i < TEXT_BOX_MAX; ++i) text_box_destroy(&text_boxes[i]);
+    for (i32 i = 0; i < INPUT_BOX_MAX; ++i) input_box_destroy(&input_boxes[i]);
+
     darray_destroy(nodes);
     UnloadRenderTexture(target);
 }
@@ -83,14 +128,24 @@ ScreenChangeType editor_update(GlobalState *gs) {
     Vector2 mpos = editor_get_transformed_mouse_position();
 
     i32 handled = INPUT_NONE;
-    handled = input_box_update(&alphabet_input, mpos, handled);
-    // TraceLog(LOG_INFO, "alphabet_input = %d", handled);
+
+    i32 menu_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NODE_NAME;
+    for (i32 i = 0; i < menu_max; ++i) {
+        handled = input_box_update(&input_boxes[i], mpos, handled);
+    }
+
     if (selected) {
-        handled = input_box_update(&node_name, mpos, handled);
         u32 len;
-        const char *name = input_box_get_text(&node_name, &len);
+        const char *name =
+            input_box_get_text(&input_boxes[INPUT_BOX_NODE_NAME], &len);
         node_set_name(selected, name, len);
-        // TraceLog(LOG_INFO, "node_name = %d", handled);
+
+        for (i32 i = 0; i < CHECK_BOX_MAX; ++i)
+            handled = check_box_update(&check_boxes[i], mpos, handled);
+
+        selected->initial_state = check_boxes[CHECK_BOX_INITIAL_STATE].checked;
+        selected->accepting_state =
+            check_boxes[CHECK_BOX_ACCEPTING_STATE].checked;
     }
 
     mpos = GetScreenToWorld2D(GetMousePosition(), camera);
@@ -134,12 +189,13 @@ void editor_before_draw(GlobalState *gs) {
 
     ClearBackground(GRAY);
 
-    text_box_draw(&alphabet);
-    input_box_draw(&alphabet_input);
+    i32 text_box_max = selected ? TEXT_BOX_MAX : TEXT_BOX_NODE_NAME;
+    for (i32 i = 0; i < text_box_max; ++i) text_box_draw(&text_boxes[i]);
+    i32 input_box_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NODE_NAME;
+    for (i32 i = 0; i < input_box_max; ++i) input_box_draw(&input_boxes[i]);
 
-    if (selected) {
-        input_box_draw(&node_name);
-    }
+    if (selected)
+        for (i32 i = 0; i < CHECK_BOX_MAX; ++i) check_box_draw(&check_boxes[i]);
 
     EndTextureMode();
 }
@@ -152,7 +208,7 @@ static void editor_update_transforms(void) {
 
     scale = fminf(scale_x, scale_y);
 
-    scale = CLAMP_MIN(scale, 0.5);
+    scale = CLAMP_MIN(scale, 1.0);
 
     source = (Rectangle){0, 0, target.texture.width, -target.texture.height};
     dest = (Rectangle){.width = target.texture.width * scale,
@@ -271,10 +327,18 @@ static i32 editor_update_nodes(Vector2 mpos, Vector2 delta, i32 handled) {
     for (i32 i = length - 1; i > -1; --i) {
         if (&nodes[i] == prev_selected) continue;
         handled = node_update(&nodes[i], mpos, delta, handled);
+        // Make sure only one state is initial state
+        if (prev_selected && prev_selected->initial_state)
+            nodes[i].initial_state = false;
+
         if (nodes[i].selected) {
             selected = &nodes[i];
-            input_box_set_text(&node_name, selected->name,
-                               selected->name_length);
+            input_box_set_text(&input_boxes[INPUT_BOX_NODE_NAME],
+                               selected->name, selected->name_length);
+            check_box_set_checked(&check_boxes[CHECK_BOX_INITIAL_STATE],
+                                  selected->initial_state);
+            check_box_set_checked(&check_boxes[CHECK_BOX_ACCEPTING_STATE],
+                                  selected->accepting_state);
         }
     }
 

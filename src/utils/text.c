@@ -37,7 +37,8 @@ void text_box_set_color(TextBox *tb, Color color) {
 }
 
 void text_box_draw(TextBox *tb) {
-    DrawTextEx(tb->font, tb->text, tb->position, tb->font_size, 1, tb->color);
+    DrawTextEx(tb->font, tb->text, tb->position, tb->font_size, 1.0f,
+               tb->color);
 }
 
 void text_box_destroy(TextBox *tb) {

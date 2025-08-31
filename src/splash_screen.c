@@ -10,32 +10,42 @@ static u8 letters_count;
 static RenderTexture2D target;
 static Rectangle source, dest;
 static float scale;
+static Vector2 position;
+static float alpha = 0.0f;
 
 static Color bg = DARKGRAY;
 
 static void splash_screen_update_transforms(void);
 
 void splash_screen_load(GlobalState *gs) {
-    target = LoadRenderTexture(800, 450);
+    target = LoadRenderTexture(800, 600);
     state = 0;
     frame_count = 0;
     letters_count = 0;
     top_left = bottom_right = 16;
     logo_x = (target.texture.width / 2) - 128;
-    logo_y = (target.texture.height / 2) - 128;
+    logo_y = (target.texture.height / 2) - 64;
+
+    int width = MeasureText("StateFlow", 100);
+    position =
+        (Vector2){.x = (target.texture.width - width) / 2, .y = logo_y - 150};
 
     splash_screen_update_transforms();
 }
 
 void splash_screen_unload(GlobalState *gs) {
     UnloadRenderTexture(target);
+    if (alpha < 1.0f) TraceLog(LOG_INFO, "Alpha is not 1");
 }
 
 ScreenChangeType splash_screen_update(GlobalState *gs) {
     splash_screen_update_transforms();
 
+    float alpha_diff = 0.001;
+
     switch (state) {
         case 0:
+            alpha_diff = 0.001;
             frame_count++;
             if (frame_count == 80) {
                 frame_count = 0;
@@ -43,14 +53,18 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
             }
             break;
         case 1:
+            alpha_diff = 0.002;
             top_left += 8;
             if (top_left >= 256) state = 2;
             break;
         case 2:
+            alpha_diff = 0.004;
             bottom_right += 8;
             if (bottom_right >= 256) state = 3;
             break;
         case 3:
+            alpha_diff = 0.008;
+            bottom_right += 8;
             frame_count++;
             if (letters_count < 10 && frame_count / 12) {
                 letters_count++;
@@ -61,6 +75,12 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
             }
             break;
     }
+
+    if (state > 0) {
+        alpha += alpha_diff;
+        alpha = CLAMP_MAX(alpha, 1.0);
+    }
+
     return SCREEN_SAME;
 }
 
@@ -92,12 +112,15 @@ void splash_screen_before_draw(GlobalState *gs) {
 
             DrawText(TextSubtext("raylib", 0, letters_count),
                      (target.texture.width / 2) - 44,
-                     (target.texture.height / 2) + 48, 50, BLACK);
+                     (target.texture.height / 2) + 48 + 64, 50, BLACK);
 
             if (frame_count > 20)
                 DrawText("powered by", logo_x, logo_y - 27, 20, LIGHTGRAY);
             break;
     }
+
+    DrawText("StateFlow", position.x, position.y, 100,
+             Fade((Color){50, 200, 255, 255}, alpha));
 
     EndTextureMode();
 }

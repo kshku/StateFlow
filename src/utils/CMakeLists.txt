@@ -9,6 +9,8 @@ set(SRCS
     node.c
     input.h
     input.c
+    checkbox.h
+    checkbox.c
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})

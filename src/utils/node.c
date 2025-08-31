@@ -13,6 +13,7 @@ static i32 node_update_animating(Node *n, i32 handled);
 
 void node_create(Node *n, Vector2 center) {
     n->center = center;
+    n->initial_state = n->accepting_state = false;
     n->position = n->center;
     n->font = GetFontDefault();
     n->font_size = 30;

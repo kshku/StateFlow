@@ -34,6 +34,8 @@ typedef struct Node {
         // bool locked;
         bool selected;
         bool pressed;
+        bool initial_state;
+        bool accepting_state;
 } Node;
 
 typedef enum NodeStatus {
