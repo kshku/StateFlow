@@ -8,7 +8,6 @@
 #include "utils/input.h"
 #include "utils/node.h"
 #include "utils/text.h"
-#include "utils/tline.h"
 
 static Camera2D camera;
 static Node *selected;
@@ -16,8 +15,6 @@ static RenderTexture2D target;
 static float scale;
 static Rectangle source, dest;
 static Node *nodes;  // Darray
-static bool transition_line = true;
-static TLine tline;
 
 enum { INPUT_BOX_ALPHABET = 0, INPUT_BOX_NAME, INPUT_BOX_MAX };
 
@@ -79,8 +76,6 @@ void editor_load(GlobalState *gs) {
         .zoom = 1.0f
     };
     selected = NULL;
-
-    tline_create(&tline, "a", 1);
 
     target = LoadRenderTexture(400, 50);
 
@@ -156,7 +151,6 @@ void editor_load(GlobalState *gs) {
 }
 
 void editor_unload(GlobalState *gs) {
-    tline_destroy(&tline);
     for (i32 i = 0; i < TEXT_BOX_MAX; ++i) text_box_destroy(&text_boxes[i]);
     for (i32 i = 0; i < INPUT_BOX_MAX; ++i) input_box_destroy(&input_boxes[i]);
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) check_box_destroy(&check_boxes[i]);
@@ -172,60 +166,52 @@ ScreenChangeType editor_update(GlobalState *gs) {
     // NOTE: Screen coordinates
 
     i32 handled = INPUT_NONE;
-    Vector2 mpos;
-    if (transition_line) {
-        mpos = GetScreenToWorld2D(GetMousePosition(), camera);
-        handled = tline_update(&tline, mpos, nodes, handled);
-    } else {
-        mpos = editor_get_transformed_mouse_position();
-        for (i32 i = 0; i < BUTTON_MAX; ++i) {
-            handled = button_update(&buttons[i], mpos, handled);
-            if (buttons[i].clicked) on_button_clicked[i](gs);
-        }
-
-        i32 menu_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NAME;
-        for (i32 i = 0; i < menu_max; ++i)
-            handled = input_box_update(&input_boxes[i], mpos, handled);
-
-        if (selected) {
-            u32 len;
-            const char *name =
-                input_box_get_text(&input_boxes[INPUT_BOX_NAME], &len);
-            node_set_name(selected, name, len);
-
-            for (i32 i = 0; i < CHECK_BOX_MAX; ++i)
-                handled = check_box_update(&check_boxes[i], mpos, handled);
-
-            selected->initial_state =
-                check_boxes[CHECK_BOX_INITIAL_STATE].checked;
-            selected->accepting_state =
-                check_boxes[CHECK_BOX_ACCEPTING_STATE].checked;
-        }
-
-        // Works, but feel wierd
-        // i32 should_handle = INPUT_LEFT_BUTTON | INPUT_RIGHT_BUTTON
-        //                   | INPUT_MIDDLE_BUTTON | INPUT_MOUSE_POSITION
-        //                   | INPUT_MOUSE_WHEEL;
-        // if (CheckCollisionPointRec(mpos, (Rectangle){0, 0,
-        // target.texture.width,
-        //                                              target.texture.height}))
-        //                                              {
-        //     // If clicked on the menu like thing, don't pass it to editor
-        //     TraceLog(LOG_INFO, "(%f, %f)", mpos.x, mpos.y);
-        //     handled = MARK_INPUT_HANDLED(handled, should_handle);
-        // }
-
-        mpos = GetScreenToWorld2D(GetMousePosition(), camera);
-
-        Vector2 delta = GetMouseDelta();
-        delta = Vector2Scale(delta, 1.0f / camera.zoom);
-        // TraceLog(LOG_INFO, "Delta: (%f, %f)", delta.x, delta.y);
-
-        handled = editor_update_nodes(mpos, delta, handled);
-        // TraceLog(LOG_INFO, "nodes = %d", handled);
+    Vector2 mpos = editor_get_transformed_mouse_position();
+    for (i32 i = 0; i < BUTTON_MAX; ++i) {
+        handled = button_update(&buttons[i], mpos, handled);
+        if (buttons[i].clicked) on_button_clicked[i](gs);
     }
 
+    i32 menu_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NAME;
+    for (i32 i = 0; i < menu_max; ++i)
+        handled = input_box_update(&input_boxes[i], mpos, handled);
+
+    if (selected) {
+        u32 len;
+        const char *name =
+            input_box_get_text(&input_boxes[INPUT_BOX_NAME], &len);
+        node_set_name(selected, name, len);
+
+        for (i32 i = 0; i < CHECK_BOX_MAX; ++i)
+            handled = check_box_update(&check_boxes[i], mpos, handled);
+
+        selected->initial_state = check_boxes[CHECK_BOX_INITIAL_STATE].checked;
+        selected->accepting_state =
+            check_boxes[CHECK_BOX_ACCEPTING_STATE].checked;
+    }
+
+    // Works, but feel wierd
+    // i32 should_handle = INPUT_LEFT_BUTTON | INPUT_RIGHT_BUTTON
+    //                   | INPUT_MIDDLE_BUTTON | INPUT_MOUSE_POSITION
+    //                   | INPUT_MOUSE_WHEEL;
+    // if (CheckCollisionPointRec(mpos, (Rectangle){0, 0,
+    // target.texture.width,
+    //                                              target.texture.height}))
+    //                                              {
+    //     // If clicked on the menu like thing, don't pass it to editor
+    //     TraceLog(LOG_INFO, "(%f, %f)", mpos.x, mpos.y);
+    //     handled = MARK_INPUT_HANDLED(handled, should_handle);
+    // }
+
     mpos = GetScreenToWorld2D(GetMousePosition(), camera);
+
+    Vector2 delta = GetMouseDelta();
+    delta = Vector2Scale(delta, 1.0f / camera.zoom);
+    // TraceLog(LOG_INFO, "Delta: (%f, %f)", delta.x, delta.y);
+
+    handled = editor_update_nodes(mpos, delta, handled);
+    // TraceLog(LOG_INFO, "nodes = %d", handled);
+
     handled = editor_update_world(mpos, handled);
     // TraceLog(LOG_INFO, "world = %d", handled);
 
@@ -239,8 +225,6 @@ void editor_draw(GlobalState *gs) {
     editor_draw_grid(1.0f, 100.0f, GRAY);
 
     DrawText("DFA EDITOR!", 5000, 200, 32, WHITE);
-
-    tline_draw(&tline);
 
     u64 length = darray_get_size(nodes);
     for (u32 i = 0; i < length; ++i) node_draw(&nodes[i]);

@@ -90,9 +90,23 @@ void node_draw(Node *n) {
             break;
     }
 
-    DrawCircleV(n->center, n->radius, color);
+    if (n->accepting_state) {
+        DrawCircleV(n->center, n->radius, BLACK);
+        DrawCircleV(n->center, n->radius * 0.9, color);
+    } else {
+        DrawCircleV(n->center, n->radius, color);
+    }
     DrawTextEx(n->font, n->name, n->position, n->font_size, 1.0f,
                n->colors.text);
+
+    if (n->initial_state) {
+        Vector2 points[3] = {
+            {n->center.x - (n->radius * 1.5), n->center.y - (n->radius * 0.5)},
+            {        n->center.x - n->radius,                     n->center.y},
+            {n->center.x - (n->radius * 1.5), n->center.y + (n->radius * 0.5)}
+        };
+        DrawSplineLinear(points, 3, 3.0f, BLACK);
+    }
 }
 
 i32 node_update(Node *n, Vector2 mpos, Vector2 delta, i32 handled) {
