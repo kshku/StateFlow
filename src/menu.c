@@ -18,7 +18,7 @@ static void on_dfa_button_clicked(GlobalState *gs);
 static void on_nfa_button_clicked(GlobalState *gs);
 static void on_load_button_clicked(GlobalState *gs);
 
-void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
+static void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
     on_dfa_button_clicked, on_nfa_button_clicked, on_load_button_clicked};
 
 static Color bg = DARKGRAY;

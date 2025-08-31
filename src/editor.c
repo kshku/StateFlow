@@ -2,11 +2,13 @@
 #include <raymath.h>
 
 #include "stateflow.h"
+#include "utils/button.h"
 #include "utils/checkbox.h"
 #include "utils/darray.h"
 #include "utils/input.h"
 #include "utils/node.h"
 #include "utils/text.h"
+#include "utils/tline.h"
 
 static Camera2D camera;
 static Node *selected;
@@ -14,8 +16,10 @@ static RenderTexture2D target;
 static float scale;
 static Rectangle source, dest;
 static Node *nodes;  // Darray
+static bool transition_line = true;
+static TLine tline;
 
-enum { INPUT_BOX_ALPHABET = 0, INPUT_BOX_NODE_NAME, INPUT_BOX_MAX };
+enum { INPUT_BOX_ALPHABET = 0, INPUT_BOX_NAME, INPUT_BOX_MAX };
 
 static InputBox input_boxes[INPUT_BOX_MAX];
 
@@ -25,13 +29,25 @@ static CheckBox check_boxes[CHECK_BOX_MAX];
 
 enum {
     TEXT_BOX_ALPHABET = 0,
-    TEXT_BOX_NODE_NAME,
+    TEXT_BOX_NAME,
     TEXT_BOX_INITIAL_STATE,
     TEXT_BOX_ACCEPTING_STATE,
     TEXT_BOX_MAX
 };
 
 static TextBox text_boxes[TEXT_BOX_MAX];
+
+enum { BUTTON_CHANGE_MODE, BUTTON_SIMULATE, BUTTON_SAVE, BUTTON_MAX };
+
+static Button buttons[BUTTON_MAX];
+
+static void on_change_mode_button_clicked(GlobalState *gs);
+static void on_simulate_button_clicked(GlobalState *gs);
+static void on_save_button_clicked(GlobalState *gs);
+
+void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
+    on_change_mode_button_clicked, on_simulate_button_clicked,
+    on_save_button_clicked};
 
 static Color bg = DARKGRAY;
 static KeyboardKey navigation_keys[][4] = {
@@ -64,6 +80,8 @@ void editor_load(GlobalState *gs) {
     };
     selected = NULL;
 
+    tline_create(&tline, "a", 1);
+
     target = LoadRenderTexture(400, 50);
 
     nodes = darray_create(Node);
@@ -73,8 +91,8 @@ void editor_load(GlobalState *gs) {
             const char *name;
             u32 len;
     } text_params[TEXT_BOX_MAX] = {
-        { {20, 10, 50, 10},       "Alphabet:",  9},
-        { {10, 30, 30, 10},            "Name",  4},
+        { {10, 10, 50, 10},        "Alphabet",  8},
+        { {10, 30, 40, 10},            "Name",  4},
         {{160, 30, 60, 11},   "Initial state", 13},
         {{250, 30, 80, 11}, "Accepting state", 15},
     };
@@ -90,7 +108,7 @@ void editor_load(GlobalState *gs) {
             Rectangle rect;
             u32 max_len;
     } input_params[INPUT_BOX_MAX] = {
-        {{90, 10, 150, 10}, 100},
+        {{60, 10, 130, 10}, 100},
         {{50, 30, 100, 10},  15}
     };
 
@@ -111,11 +129,38 @@ void editor_load(GlobalState *gs) {
         check_box_create(&check_boxes[i], check_box_rects[i]);
         check_box_set_color(&check_boxes[i], GREEN);
     }
+
+    struct {
+            Rectangle rect;
+            const char *text;
+            u32 len;
+    } button_params[BUTTON_MAX] = {
+        {{200, 10, 60, 10}, "Transition", 10},
+        {{265, 10, 60, 10},   "Simulate",  8},
+        {{330, 10, 60, 10},       "Save",  4}
+    };
+
+    ButtonColors button_colors = {.text = GREEN,
+                                  .normal = BLUE,
+                                  .down = DARKBLUE,
+                                  .disabled = GRAY,
+                                  .disabled_text = Fade(GREEN, 0.5),
+                                  .hovered = VIOLET};
+
+    for (i32 i = 0; i < BUTTON_MAX; ++i) {
+        button_create(&buttons[i], button_params[i].rect);
+        button_set_colors(&buttons[i], button_colors);
+        button_set_text_and_font(&buttons[i], button_params[i].text,
+                                 button_params[i].len, GetFontDefault());
+    }
 }
 
 void editor_unload(GlobalState *gs) {
+    tline_destroy(&tline);
     for (i32 i = 0; i < TEXT_BOX_MAX; ++i) text_box_destroy(&text_boxes[i]);
     for (i32 i = 0; i < INPUT_BOX_MAX; ++i) input_box_destroy(&input_boxes[i]);
+    for (i32 i = 0; i < CHECK_BOX_MAX; ++i) check_box_destroy(&check_boxes[i]);
+    for (i32 i = 0; i < BUTTON_MAX; ++i) button_destroy(&buttons[i]);
 
     darray_destroy(nodes);
     UnloadRenderTexture(target);
@@ -125,38 +170,62 @@ ScreenChangeType editor_update(GlobalState *gs) {
     editor_update_transforms();
 
     // NOTE: Screen coordinates
-    Vector2 mpos = editor_get_transformed_mouse_position();
 
     i32 handled = INPUT_NONE;
+    Vector2 mpos;
+    if (transition_line) {
+        mpos = GetScreenToWorld2D(GetMousePosition(), camera);
+        handled = tline_update(&tline, mpos, nodes, handled);
+    } else {
+        mpos = editor_get_transformed_mouse_position();
+        for (i32 i = 0; i < BUTTON_MAX; ++i) {
+            handled = button_update(&buttons[i], mpos, handled);
+            if (buttons[i].clicked) on_button_clicked[i](gs);
+        }
 
-    i32 menu_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NODE_NAME;
-    for (i32 i = 0; i < menu_max; ++i) {
-        handled = input_box_update(&input_boxes[i], mpos, handled);
-    }
+        i32 menu_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NAME;
+        for (i32 i = 0; i < menu_max; ++i)
+            handled = input_box_update(&input_boxes[i], mpos, handled);
 
-    if (selected) {
-        u32 len;
-        const char *name =
-            input_box_get_text(&input_boxes[INPUT_BOX_NODE_NAME], &len);
-        node_set_name(selected, name, len);
+        if (selected) {
+            u32 len;
+            const char *name =
+                input_box_get_text(&input_boxes[INPUT_BOX_NAME], &len);
+            node_set_name(selected, name, len);
 
-        for (i32 i = 0; i < CHECK_BOX_MAX; ++i)
-            handled = check_box_update(&check_boxes[i], mpos, handled);
+            for (i32 i = 0; i < CHECK_BOX_MAX; ++i)
+                handled = check_box_update(&check_boxes[i], mpos, handled);
 
-        selected->initial_state = check_boxes[CHECK_BOX_INITIAL_STATE].checked;
-        selected->accepting_state =
-            check_boxes[CHECK_BOX_ACCEPTING_STATE].checked;
+            selected->initial_state =
+                check_boxes[CHECK_BOX_INITIAL_STATE].checked;
+            selected->accepting_state =
+                check_boxes[CHECK_BOX_ACCEPTING_STATE].checked;
+        }
+
+        // Works, but feel wierd
+        // i32 should_handle = INPUT_LEFT_BUTTON | INPUT_RIGHT_BUTTON
+        //                   | INPUT_MIDDLE_BUTTON | INPUT_MOUSE_POSITION
+        //                   | INPUT_MOUSE_WHEEL;
+        // if (CheckCollisionPointRec(mpos, (Rectangle){0, 0,
+        // target.texture.width,
+        //                                              target.texture.height}))
+        //                                              {
+        //     // If clicked on the menu like thing, don't pass it to editor
+        //     TraceLog(LOG_INFO, "(%f, %f)", mpos.x, mpos.y);
+        //     handled = MARK_INPUT_HANDLED(handled, should_handle);
+        // }
+
+        mpos = GetScreenToWorld2D(GetMousePosition(), camera);
+
+        Vector2 delta = GetMouseDelta();
+        delta = Vector2Scale(delta, 1.0f / camera.zoom);
+        // TraceLog(LOG_INFO, "Delta: (%f, %f)", delta.x, delta.y);
+
+        handled = editor_update_nodes(mpos, delta, handled);
+        // TraceLog(LOG_INFO, "nodes = %d", handled);
     }
 
     mpos = GetScreenToWorld2D(GetMousePosition(), camera);
-
-    Vector2 delta = GetMouseDelta();
-    delta = Vector2Scale(delta, 1.0f / camera.zoom);
-    // TraceLog(LOG_INFO, "Delta: (%f, %f)", delta.x, delta.y);
-
-    handled = editor_update_nodes(mpos, delta, handled);
-    // TraceLog(LOG_INFO, "nodes = %d", handled);
-
     handled = editor_update_world(mpos, handled);
     // TraceLog(LOG_INFO, "world = %d", handled);
 
@@ -170,6 +239,8 @@ void editor_draw(GlobalState *gs) {
     editor_draw_grid(1.0f, 100.0f, GRAY);
 
     DrawText("DFA EDITOR!", 5000, 200, 32, WHITE);
+
+    tline_draw(&tline);
 
     u64 length = darray_get_size(nodes);
     for (u32 i = 0; i < length; ++i) node_draw(&nodes[i]);
@@ -189,9 +260,10 @@ void editor_before_draw(GlobalState *gs) {
 
     ClearBackground(GRAY);
 
-    i32 text_box_max = selected ? TEXT_BOX_MAX : TEXT_BOX_NODE_NAME;
+    for (i32 i = 0; i < BUTTON_MAX; ++i) button_draw(&buttons[i]);
+    i32 text_box_max = selected ? TEXT_BOX_MAX : TEXT_BOX_NAME;
     for (i32 i = 0; i < text_box_max; ++i) text_box_draw(&text_boxes[i]);
-    i32 input_box_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NODE_NAME;
+    i32 input_box_max = selected ? INPUT_BOX_MAX : INPUT_BOX_NAME;
     for (i32 i = 0; i < input_box_max; ++i) input_box_draw(&input_boxes[i]);
 
     if (selected)
@@ -261,6 +333,19 @@ static i32 editor_update_world(Vector2 mpos, i32 handled) {
             if (IsKeyDown(navigation_keys[i][2])) camera.target.y -= 10;
             if (IsKeyDown(navigation_keys[i][3])) camera.target.y += 10;
         }
+
+        if (IsKeyPressed(KEY_DELETE) && selected) {
+            u64 len = darray_get_size(nodes);
+            for (u32 i = 0; i < len; ++i) {
+                if (&nodes[i] == selected) {
+                    darray_pop_at(&nodes, i, NULL);
+                    node_destroy(selected);
+                    selected = NULL;
+                    break;
+                }
+            }
+        }
+
         handled = MARK_INPUT_HANDLED(handled, INPUT_KEYSTROKES);
     }
 
@@ -321,7 +406,10 @@ static i32 editor_update_nodes(Vector2 mpos, Vector2 delta, i32 handled) {
     Node *prev_selected = selected;
     if (selected) {
         handled = node_update(selected, mpos, delta, handled);
-        if (!selected->selected) selected = NULL;
+        if (!selected->selected) {
+            selected = NULL;
+            input_box_set_text(&input_boxes[INPUT_BOX_NAME], "", 0);
+        }
     }
     u64 length = darray_get_size(nodes);
     for (i32 i = length - 1; i > -1; --i) {
@@ -333,8 +421,8 @@ static i32 editor_update_nodes(Vector2 mpos, Vector2 delta, i32 handled) {
 
         if (nodes[i].selected) {
             selected = &nodes[i];
-            input_box_set_text(&input_boxes[INPUT_BOX_NODE_NAME],
-                               selected->name, selected->name_length);
+            input_box_set_text(&input_boxes[INPUT_BOX_NAME], selected->name,
+                               selected->name_length);
             check_box_set_checked(&check_boxes[CHECK_BOX_INITIAL_STATE],
                                   selected->initial_state);
             check_box_set_checked(&check_boxes[CHECK_BOX_ACCEPTING_STATE],
@@ -372,6 +460,18 @@ static Vector2 editor_get_transformed_mouse_position(void) {
     Vector2 mpos = GetMousePosition();
     return (Vector2){.x = (mpos.x - dest.x) / scale,
                      .y = (mpos.y - dest.y) / scale};
+}
+
+static void on_change_mode_button_clicked(GlobalState *gs) {
+    UNUSED(gs);
+}
+
+static void on_simulate_button_clicked(GlobalState *gs) {
+    UNUSED(gs);
+}
+
+static void on_save_button_clicked(GlobalState *gs) {
+    UNUSED(gs);
 }
 
 Screen editor = {.load = editor_load,
