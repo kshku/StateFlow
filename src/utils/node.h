@@ -21,6 +21,7 @@ typedef struct NodeColors {
 
 typedef struct Node {
         char *name;
+        u32 name_length;
         Font font;
         float font_size;
         Vector2 center;
@@ -30,7 +31,7 @@ typedef struct Node {
         NodeColors colors;
         bool editing;
         bool moving;
-        bool locked;
+        // bool locked;
         bool selected;
         bool pressed;
 } Node;
@@ -74,7 +75,7 @@ void node_create(Node *n, Vector2 center);
 
 void node_destroy(Node *n);
 
-void node_set_name(Node *n, char *name, u32 len);
+void node_set_name(Node *n, const char *name, u32 len);
 
 void node_set_font(Node *n, Font font, float font_size);
 
@@ -82,9 +83,9 @@ void node_set_colors(Node *n, NodeColors colors);
 
 void node_draw(Node *n);
 
-NodeStatus node_update(Node *n, Vector2 mpos, Vector2 delta);
+i32 node_update(Node *n, Vector2 mpos, Vector2 delta, i32 handled);
 
-void node_lock_state(Node *n, NodeState state);
-void node_unlock_state(Node *n);
+// void node_lock_state(Node *n, NodeState state);
+// void node_unlock_state(Node *n);
 
-void node_set_state(Node *n, NodeState state);
+// void node_set_state(Node *n, NodeState state);

@@ -4,9 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static NodeStatus node_update_editing(Node *n, Vector2 mpos, Vector2 delta);
+#define NODE_MINIMUM_RADIUS 50.0f
 
-static NodeStatus node_update_animating(Node *n);
+static i32 node_update_editing(Node *n, Vector2 mpos, Vector2 delta,
+                               i32 handled);
+
+static i32 node_update_animating(Node *n, i32 handled);
 
 void node_create(Node *n, Vector2 center) {
     n->center = center;
@@ -14,16 +17,17 @@ void node_create(Node *n, Vector2 center) {
     n->font = GetFontDefault();
     n->font_size = 30;
     n->name = NULL;
+    n->name_length = 0;
     n->state = NODE_STATE_NORMAL;
     n->colors = (NodeColors){.normal = WHITE,
                              .hovered = WHITE,
                              .text = WHITE,
                              .down = WHITE,
                              .highlighted = WHITE};
-    n->radius = 50.0f;
+    n->radius = NODE_MINIMUM_RADIUS;
     n->editing = true;
     n->moving = false;
-    n->locked = false;
+    // n->locked = false;
     n->selected = false;
     n->pressed = false;
 }
@@ -32,15 +36,19 @@ void node_destroy(Node *n) {
     free(n->name);
 }
 
-void node_set_name(Node *n, char *name, u32 len) {
+void node_set_name(Node *n, const char *name, u32 len) {
     char *new_name = (char *)realloc(n->name, (len + 1) * sizeof(char));
-    if (!new_name) return;
+    if (!new_name) {
+        n->radius = NODE_MINIMUM_RADIUS;
+        return;
+    }
     strncpy(new_name, name, len);
     new_name[len] = 0;
+    n->name_length = len;
     n->name = new_name;
 
     Vector2 size = MeasureTextEx(n->font, n->name, n->font_size, 1.0f);
-    n->radius = size.x / 2;
+    n->radius = CLAMP_MIN((size.x / 2) + 10.0f, NODE_MINIMUM_RADIUS);
 
     n->position = (Vector2){
         .x = n->center.x - (size.x / 2),
@@ -86,9 +94,9 @@ void node_draw(Node *n) {
                n->colors.text);
 }
 
-NodeStatus node_update(Node *n, Vector2 mpos, Vector2 delta) {
-    return n->editing ? node_update_editing(n, mpos, delta)
-                      : node_update_animating(n);
+i32 node_update(Node *n, Vector2 mpos, Vector2 delta, i32 handled) {
+    return n->editing ? node_update_editing(n, mpos, delta, handled)
+                      : node_update_animating(n, handled);
 }
 
 // bool node_update(Node *n, Vector2 mpos) {
@@ -145,55 +153,74 @@ NodeStatus node_update(Node *n, Vector2 mpos, Vector2 delta) {
 //                                                   : NODE_STATE_HIGHLIGHTED;
 // }
 
-static NodeStatus node_update_editing(Node *n, Vector2 mpos, Vector2 delta) {
+static i32 node_update_editing(Node *n, Vector2 mpos, Vector2 delta,
+                               i32 handled) {
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && (delta.x != 0 || delta.y != 0)
-        && n->selected) {
+        && n->selected && n->pressed
+        && !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) {
+        handled = MARK_INPUT_HANDLED(handled,
+                                     INPUT_LEFT_BUTTON | INPUT_MOUSE_POSITION);
+        n->state = NODE_STATE_DOWN;
         n->moving = true;
         n->center = Vector2Add(delta, n->center);
         n->position = Vector2Add(delta, n->position);
-        return NODE_MOVING;
+        return handled;
     }
 
-    if (CheckCollisionPointCircle(mpos, n->center, n->radius)) {
-        if (!n->locked) n->state = NODE_STATE_HOVERED;
+    if (CheckCollisionPointCircle(mpos, n->center, n->radius)
+        && !IS_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION)) {
+        n->state = NODE_STATE_HOVERED;
+        handled = MARK_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION);
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) n->pressed = true;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            n->pressed = true;
+            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
+        }
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            if (!n->locked) n->state = NODE_STATE_DOWN;
+            n->state = NODE_STATE_DOWN;
+            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && n->pressed) {
+            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
             if (n->moving) n->moving = false;
             else {
+                n->state = NODE_STATE_DOWN;
                 n->selected = true;
                 n->pressed = false;
-                return NODE_CLICKED;
             }
         }
 
-        return NODE_HOVERED;
+        if (n->selected) n->state = NODE_STATE_DOWN;
+
+        return handled;
     }
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) n->selected = false;
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+        && !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON))
+        n->selected = false;
 
     n->pressed = false;
     n->moving = false;
 
-    if (!n->locked) n->state = NODE_STATE_NORMAL;
+    n->state = NODE_STATE_NORMAL;
 
-    return NODE_NOT_AFFECTED;
+    if (n->selected) n->state = NODE_STATE_DOWN;
+
+    return handled;
 }
 
-static NodeStatus node_update_animating(Node *n) {
+static i32 node_update_animating(Node *n, i32 handled) {
 }
 
-void node_lock_state(Node *n, NodeState state) {
-    n->locked = true;
-    n->state = state;
-}
+// void node_lock_state(Node *n, NodeState state) {
+//     n->locked = true;
+//     n->state = state;
+// }
 
-void node_unlock_state(Node *n) {
-    n->locked = false;
-}
+// void node_unlock_state(Node *n) {
+//     n->locked = false;
+// }
 
-void node_set_state(Node *n, NodeState state) {
-    n->state = state;
-}
+// void node_set_state(Node *n, NodeState state) {
+//     n->state = state;
+// }

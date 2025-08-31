@@ -19,3 +19,16 @@ typedef int64_t i64;
 #define CLAMP(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
 #define CLAMP_MIN(x, a) ((x) < (a) ? (a) : (x))
 #define CLAMP_MAX(x, a) ((x) > (a) ? (a) : (x))
+
+typedef enum Input {
+    INPUT_NONE = 0,
+    INPUT_KEYSTROKES = 1 << 0,
+    INPUT_LEFT_BUTTON = 1 << 1,
+    INPUT_RIGHT_BUTTON = 1 << 2,
+    INPUT_MIDDLE_BUTTON = 1 << 3,
+    INPUT_MOUSE_POSITION = 1 << 4,
+    INPUT_MOUSE_WHEEL = 1 << 5,
+} Input;
+
+#define IS_INPUT_HANDLED(handled, input) ((handled) & (input))
+#define MARK_INPUT_HANDLED(handled, input) ((handled) | (input))

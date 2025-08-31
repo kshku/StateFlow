@@ -7,16 +7,25 @@
 static TextBox test;
 static Button button;
 static RenderTexture2D target;
-static Button dfa, nfa;
-static Button load;
 static Rectangle source, dest;
 static float scale;
+
+enum { BUTTON_DFA = 0, BUTTON_NFA, BUTTON_LOAD, BUTTON_MAX };
+
+static Button buttons[BUTTON_MAX];
+
+static void on_dfa_button_clicked(GlobalState *gs);
+static void on_nfa_button_clicked(GlobalState *gs);
+static void on_load_button_clicked(GlobalState *gs);
+
+void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
+    on_dfa_button_clicked, on_nfa_button_clicked, on_load_button_clicked};
 
 static Color bg = DARKGRAY;
 
 static void menu_update_transforms(void);
 
-static void menu_update_mouse_position(Vector2 *mpos);
+static Vector2 menu_get_transformed_mouse_position(void);
 
 void menu_load(GlobalState *gs) {
     target = LoadRenderTexture(800, 800);
@@ -25,17 +34,14 @@ void menu_load(GlobalState *gs) {
     float height = 32;
     Rectangle rect = {.x = 250, .y = 250, .width = 300, .height = 32};
 
-    button_create(&dfa, rect);
-
-    rect.y += rect.height + 100;
-    button_create(&nfa, rect);
-
-    rect.y += rect.height + 100;
-    button_create(&load, rect);
-
-    button_set_text_and_font(&dfa, "Create new DFA", 14, GetFontDefault());
-    button_set_text_and_font(&nfa, "Create new NFA", 14, GetFontDefault());
-    button_set_text_and_font(&load, "Load State Machine", 18, GetFontDefault());
+    struct {
+            char *name;
+            u32 len;
+    } button_texts[BUTTON_MAX] = {
+        {    "Create new DFA", 14},
+        {    "Create new NFA", 14},
+        {"Load State Machine", 18}
+    };
 
     ButtonColors colors = {.text = GREEN,
                            .normal = BLUE,
@@ -44,20 +50,19 @@ void menu_load(GlobalState *gs) {
                            .disabled_text = Fade(GREEN, 0.5),
                            .hovered = VIOLET};
 
-    // button_set_color(&dfa, BLUE, GREEN);
-    // button_set_color(&nfa, BLUE, GREEN);
-    // button_set_color(&load, BLUE, GREEN);
-    button_set_colors(&dfa, colors);
-    button_set_colors(&nfa, colors);
-    button_set_colors(&load, colors);
+    for (i32 i = 0; i < BUTTON_MAX; ++i) {
+        button_create(&buttons[i], rect);
+        button_set_text_and_font(&buttons[i], button_texts[i].name,
+                                 button_texts[i].len, GetFontDefault());
+        button_set_colors(&buttons[i], colors);
+        rect.y += rect.height + 100;
+    }
 
     menu_update_transforms();
 }
 
 void menu_unload(GlobalState *gs) {
-    button_destroy(&dfa);
-    button_destroy(&nfa);
-    button_destroy(&load);
+    for (i32 i = 0; i < BUTTON_MAX; ++i) button_destroy(&buttons[i]);
 
     UnloadRenderTexture(target);
 }
@@ -65,25 +70,19 @@ void menu_unload(GlobalState *gs) {
 ScreenChangeType menu_update(GlobalState *gs) {
     menu_update_transforms();
 
-    Vector2 mpos = GetMousePosition();
-    menu_update_mouse_position(&mpos);
+    Vector2 mpos = menu_get_transformed_mouse_position();
+    i32 handled = INPUT_NONE;
 
-    if (button_update(&dfa, mpos)) {
-        gs->next_screen = &editor;
-        // gs->next_screen = &splash_screen;
-        return SCREEN_CHANGE;
-    }
+    for (i32 i = 0; i < BUTTON_MAX; ++i)
+        handled = button_update(&buttons[i], mpos, handled);
 
-    if (button_update(&nfa, mpos)) {
-        button_disable(&dfa);
-        // gs->next_screen = &splash_screen;
-        // return SCREEN_CHANGE;
-    }
-
-    if (button_update(&load, mpos)) {
-        button_enable(&dfa);
-        // gs->next_screen = &splash_screen;
-        // return SCREEN_CHANGE;
+    for (i32 i = 0; i < BUTTON_MAX; ++i) {
+        if (buttons[i].clicked) {
+            on_button_clicked[i](gs);
+            // Just making things work temporarily
+            if (i == 0) return SCREEN_CHANGE;
+            break;
+        }
     }
 
     return SCREEN_SAME;
@@ -93,10 +92,7 @@ void menu_before_draw(GlobalState *gs) {
     BeginTextureMode(target);
 
     ClearBackground(bg);
-
-    button_draw(&dfa);
-    button_draw(&nfa);
-    button_draw(&load);
+    for (i32 i = 0; i < BUTTON_MAX; ++i) button_draw(&buttons[i]);
 
     EndTextureMode();
 }
@@ -124,11 +120,26 @@ static void menu_update_transforms(void) {
     dest.y = (height - dest.height) / 2;
 }
 
-static void menu_update_mouse_position(Vector2 *mpos) {
-    mpos->x -= dest.x;
-    mpos->y -= dest.y;
-    mpos->x /= scale;
-    mpos->y /= scale;
+static Vector2 menu_get_transformed_mouse_position(void) {
+    Vector2 mpos = GetMousePosition();
+
+    return (Vector2){.x = (mpos.x - dest.x) / scale,
+                     .y = (mpos.y - dest.y) / scale};
+}
+
+static void on_dfa_button_clicked(GlobalState *gs) {
+    gs->next_screen = &editor;
+    // gs->next_screen = &splash_screen;
+}
+
+static void on_nfa_button_clicked(GlobalState *gs) {
+    button_disable(&buttons[BUTTON_DFA]);
+    // gs->next_screen = &splash_screen;
+}
+
+static void on_load_button_clicked(GlobalState *gs) {
+    button_enable(&buttons[BUTTON_DFA]);
+    // gs->next_screen = &splash_screen;
 }
 
 Screen menu = (Screen){.load = menu_load,

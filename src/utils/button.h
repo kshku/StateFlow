@@ -26,6 +26,7 @@ typedef struct Button {
         ButtonColors colors;
         ButtonState state;
         bool pressed;
+        bool clicked;
 } Button;
 
 void button_create(Button *btn, Rectangle rect);
@@ -39,7 +40,7 @@ void button_set_colors(Button *btn, ButtonColors colors);
 
 // void button_set_color(Button *btn, Color btn_color, Color text_color);
 
-bool button_update(Button *btn, Vector2 mpos);
+i32 button_update(Button *btn, Vector2 mpos, u32 handled);
 
 void button_disable(Button *btn);
 

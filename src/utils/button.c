@@ -8,6 +8,7 @@ void button_create(Button *btn, Rectangle rect) {
     text_box_create(&btn->text, rect);
     btn->state = BUTTON_STATE_NORMAL;
     btn->pressed = false;
+    btn->clicked = false;
 }
 
 void button_destroy(Button *btn) {
@@ -46,28 +47,40 @@ void button_draw(Button *btn) {
     text_box_draw(&btn->text);
 }
 
-bool button_update(Button *btn, Vector2 mpos) {
-    if (btn->state == BUTTON_STATE_DISABLED) return false;
+i32 button_update(Button *btn, Vector2 mpos, u32 handled) {
+    btn->clicked = false;
+    if (btn->state == BUTTON_STATE_DISABLED) return handled;
+
     // Returns true if clicked
-    if (CheckCollisionPointRec(mpos, btn->text.rect)) {
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) btn->pressed = true;
+    if (CheckCollisionPointRec(mpos, btn->text.rect)
+        && !IS_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION)) {
+        handled = MARK_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION);
+        btn->state = BUTTON_STATE_HOVERED;
+
+        if (IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) return handled;
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            btn->pressed = true;
+            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
+        }
+
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             btn->state = BUTTON_STATE_DOWN;
+            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && btn->pressed) {
             btn->state = BUTTON_STATE_HOVERED;
             btn->pressed = false;
-            return true;
-        } else {
-            btn->state = BUTTON_STATE_HOVERED;
+            btn->clicked = true;
+            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
         }
 
-        return false;
+        return handled;
     }
 
     btn->pressed = false;
     btn->state = BUTTON_STATE_NORMAL;
 
-    return false;
+    return handled;
 }
 
 void button_disable(Button *btn) {
