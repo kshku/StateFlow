@@ -28,7 +28,7 @@ void input_box_set_font(InputBox *ib, Font font) {
     ib->font = font;
 
     Vector2 size = MeasureTextEx(ib->font, "A", ib->font_size, 1.0f);
-    ib->chars_to_show = (int)ib->rect.width / size.x;
+    ib->chars_to_show = (u32)ib->rect.width / size.x;
     TraceLog(LOG_INFO, "chars_to_show = %d", ib->chars_to_show);
 
     ib->position = (Vector2){
@@ -48,9 +48,7 @@ void input_box_set_colors(InputBox *ib, InputBoxColors colors) {
 void input_box_draw(InputBox *ib) {
     DrawRectangleRec(ib->rect, ib->colors.box);
     u32 idx = 0;
-    if (ib->index >= ib->chars_to_show) {
-        idx = ib->index - ib->chars_to_show;
-    }
+    if (ib->index >= ib->chars_to_show) idx = ib->index - ib->chars_to_show;
 
     if (ib->focused && ib->index < ib->max_len - 1) {
         ib->text[ib->index + 1] = 0;
@@ -68,18 +66,16 @@ i32 input_box_update(InputBox *ib, Vector2 mpos, i32 handled) {
     ib->frame_counter++;
     if (ib->focused && !IS_INPUT_HANDLED(handled, INPUT_KEYSTROKES)) {
         SetMouseCursor(MOUSE_CURSOR_IBEAM);
-        TraceLog(LOG_INFO, "Waiting for input!");
+        // TraceLog(LOG_INFO, "Waiting for input!");
         take_input_text(ib);
         handled = MARK_INPUT_HANDLED(handled, INPUT_KEYSTROKES);
         // MARK_INPUT_HANDLED(handled, INPUT_KEYSTROKES | INPUT_MOUSE_POSITION
         //                                 | INPUT_LEFT_BUTTON);
-    } else {
-        SetMouseCursor(MOUSE_CURSOR_ARROW);
     }
 
     if (CheckCollisionPointRec(mpos, ib->rect)
         && !IS_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION)) {
-        TraceLog(LOG_INFO, "Collided");
+        // TraceLog(LOG_INFO, "Collided");
         handled = MARK_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION);
 
         if (IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) return handled;
@@ -102,7 +98,8 @@ i32 input_box_update(InputBox *ib, Vector2 mpos, i32 handled) {
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
         && !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) {
         ib->focused = false;
-        TraceLog(LOG_INFO, "Unfocused!");
+        SetMouseCursor(MOUSE_CURSOR_ARROW);
+        // TraceLog(LOG_INFO, "Unfocused!");
     }
 
     ib->pressed = false;

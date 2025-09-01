@@ -13,6 +13,8 @@ set(SRCS
     checkbox.c
     tline.h
     tline.c
+    node_selector.h
+    node_selector.c
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})

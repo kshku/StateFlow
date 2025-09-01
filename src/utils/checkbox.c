@@ -18,9 +18,7 @@ void check_box_destroy(CheckBox *cb) {
 
 void check_box_draw(CheckBox *cb) {
     DrawRectangleRec(cb->rect, cb->color);
-    if (cb->checked) {
-        DrawRectangleRec(cb->inner_rect, cb->inner_color);
-    }
+    if (cb->checked) DrawRectangleRec(cb->inner_rect, cb->inner_color);
 }
 
 i32 check_box_update(CheckBox *cb, Vector2 mpos, i32 handled) {

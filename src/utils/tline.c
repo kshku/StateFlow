@@ -2,19 +2,17 @@
 
 #include <stdlib.h>
 
-#include "darray.h"
-
 void tline_create(TLine *tl, const char *inputs, u32 len) {
     tline_set_colors(tl, YELLOW);
     tline_set_start_node(tl, NULL);
     tline_set_end_node(tl, NULL);
     tline_set_inputs(tl, NULL, 0);
-    tl->points = darray_create(Vector2);
+    tl->pressed = false;
+    tl->selected = false;
 }
 
 void tline_destroy(TLine *tl) {
     free(tl->inputs);
-    darray_destroy(tl->points);
 }
 
 void tline_set_colors(TLine *tl, Color color) {
@@ -23,16 +21,10 @@ void tline_set_colors(TLine *tl, Color color) {
 
 void tline_set_start_node(TLine *tl, Node *n) {
     tl->start = n;
-    if (n) darray_push_at(&tl->points, 0, n->center);
 }
 
 void tline_set_end_node(TLine *tl, Node *n) {
     tl->end = n;
-    if (n) darray_push(&tl->points, n->center);
-}
-
-void tline_add_point(TLine *tl, Vector2 point) {
-    if (!tl->end) darray_push(tl->points, point);
 }
 
 void tline_set_inputs(TLine *tl, const char *inputs, u32 len) {
@@ -49,36 +41,44 @@ const char *tline_get_inputs(TLine *tl, u32 *len) {
     return tl->inputs;
 }
 
-i32 tline_update(TLine *tl, Vector2 mpos, Node *nodes, i32 handled) {
-    u64 len = darray_get_size(nodes);
-    if (!tl->start) {
-        for (u32 i = 0; i < len; ++i) {
-            handled = node_update(&nodes[i], mpos, (Vector2){0, 0}, handled);
-            if (nodes[i].selected) tline_set_start_node(tl, &nodes[i]);
+i32 tline_update(TLine *tl, Vector2 mpos, i32 handled) {
+    if (CheckCollisionPointLine(mpos, tl->start->center, tl->end->center, 1.0f)
+        && !IS_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION)) {
+        handled = MARK_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION);
+
+        if (IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) return handled;
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            tl->pressed = true;
+            handled = MARK_INPUT_HANDLED(handled, MOUSE_BUTTON_LEFT);
         }
 
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && tl->pressed) {
+            handled = MARK_INPUT_HANDLED(handled, MOUSE_BUTTON_LEFT);
+            tl->pressed = false;
+            tl->selected = true;
+        }
         return handled;
     }
 
-    if (!tl->end) {
-        for (u32 i = 0; i < len; ++i) {
-            handled = node_update(&nodes[i], mpos, (Vector2){0, 0}, handled);
-            if (nodes[i].selected) tline_set_end_node(tl, &nodes[i]);
-        }
+    tl->pressed = false;
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
-            && !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) {
-            handled = MARK_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON);
-            darray_push(&tl->points, mpos);
-        }
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+        && !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON))
+        tl->selected = false;
 
-        if (!tl->end) darray_push(&tl->points, mpos);
-    }
+    return handled;
 }
 
 void tline_draw(TLine *tl) {
-    u64 len = darray_get_size(tl->points);
-    if (len > 1) {
-        DrawSplineLinear(tl->points, len, 1.0f, tl->color);
-    }
+    DrawLineBezier(tl->start->center, tl->end->center, 2.0f, tl->color);
+}
+
+void tline_append_input(TLine *tl, const char *input, u32 len) {
+    char *new_input =
+        (char *)realloc(tl->inputs, (tl->len + len + 1) * sizeof(char));
+    if (!new_input) return;
+    for (i32 i = tl->len; i < tl->len + len; ++i)
+        tl->inputs[i - tl->len] = input[i];
+    tl->len += len;
 }
