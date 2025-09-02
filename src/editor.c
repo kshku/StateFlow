@@ -76,10 +76,11 @@ enum { TRT_FROM, TRT_INPUTS, TRT_TO, TRT_MAX };
 
 static TextBox tr_texts[TRT_MAX];
 static InputBox tr_input;
+static Button tr_button;
 
 static void editor_draw_grid(float thick, float spacing, Color color);
 
-static i32 editor_update_world(Vector2 mpos, i32 handled);
+static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled);
 
 static Vector2 editor_get_transformed_mouse_position(void);
 
@@ -87,6 +88,8 @@ static void editor_update_transforms(void);
 
 static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
                                           bool update_nodes, i32 handled);
+
+static void on_transition_add_button_clicked(GlobalState *gs);
 
 void editor_load(GlobalState *gs) {
     camera = (Camera2D){
@@ -98,7 +101,7 @@ void editor_load(GlobalState *gs) {
     selected_node = NULL;
     selected_tline = NULL;
 
-    target = LoadRenderTexture(400, 50);
+    target = LoadRenderTexture(1600, 160);
 
     editor_state = EDITOR_STATE_NODE;
     nodes = darray_create(Node);
@@ -109,25 +112,26 @@ void editor_load(GlobalState *gs) {
             const char *name;
             u32 len;
     } text_params[TEXT_BOX_MAX] = {
-        { {10, 10, 50, 10},        "Alphabet",  8},
-        { {10, 30, 40, 10},            "Name",  4},
-        {{160, 30, 60, 11},   "Initial state", 13},
-        {{250, 30, 80, 11}, "Accepting state", 15},
+        { {10, 10, 200, 50},        "Alphabet",  8},
+        { {10, 80, 100, 50},            "Name",  4},
+        {{510, 80, 250, 50},   "Initial state", 13},
+        {{840, 80, 250, 50}, "Accepting state", 15},
     };
 
     for (i32 i = 0; i < TEXT_BOX_MAX; ++i) {
         text_box_create(&text_boxes[i], text_params[i].rect);
         text_box_set_color(&text_boxes[i], WHITE);
         text_box_set_text_and_font(&text_boxes[i], text_params[i].name,
-                                   text_params[i].len, GetFontDefault());
+                                   text_params[i].len,
+                                   gs->jet_brains_mono_nerd_medium);
     }
 
     struct {
             Rectangle rect;
             u32 max_len;
     } input_params[INPUT_BOX_MAX] = {
-        {{60, 10, 130, 10}, 100},
-        {{50, 30, 100, 10},  15}
+        {{220, 10, 470, 50}, 100},
+        {{120, 80, 370, 50},  15}
     };
 
     for (i32 i = 0; i < INPUT_BOX_MAX; ++i) {
@@ -135,12 +139,12 @@ void editor_load(GlobalState *gs) {
                          input_params[i].max_len);
         input_box_set_colors(&input_boxes[i],
                              (InputBoxColors){.box = BLACK, .text = WHITE});
-        input_box_set_font(&input_boxes[i], GetFontDefault());
+        input_box_set_font(&input_boxes[i], gs->jet_brains_mono_nerd_medium);
     }
 
     Rectangle check_box_rects[CHECK_BOX_MAX] = {
-        {230, 30, 10, 10},
-        {340, 30, 10, 10}
+        { 770, 80, 50, 50},
+        {1100, 80, 50, 50}
     };
 
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) {
@@ -153,9 +157,9 @@ void editor_load(GlobalState *gs) {
             const char *text;
             u32 len;
     } button_params[BUTTON_MAX] = {
-        {{200, 10, 60, 10}, "Transition", 10},
-        {{265, 10, 60, 10},   "Simulate",  8},
-        {{330, 10, 60, 10},       "Save",  4}
+        { {740, 10, 200, 50}, "Transition", 10},
+        { {960, 10, 200, 50},   "Simulate",  8},
+        {{1180, 10, 200, 50},       "Save",  4}
     };
 
     ButtonColors button_colors = {.text = GREEN,
@@ -169,7 +173,8 @@ void editor_load(GlobalState *gs) {
         button_create(&buttons[i], button_params[i].rect);
         button_set_colors(&buttons[i], button_colors);
         button_set_text_and_font(&buttons[i], button_params[i].text,
-                                 button_params[i].len, GetFontDefault());
+                                 button_params[i].len,
+                                 gs->jet_brains_mono_nerd_medium);
     }
 
     struct {
@@ -177,34 +182,41 @@ void editor_load(GlobalState *gs) {
             const char *name;
             u32 len;
     } trt_params[TRT_MAX] = {
-        { {10, 30, 30, 10}, "From: ", 6},
-        {{100, 30, 30, 10}, "Input:", 6},
-        {{260, 30, 20, 10},   "To: ", 4}
+        { {10, 80, 150, 50}, "From: ", 6},
+        {{330, 80, 150, 50}, "Input:", 6},
+        {{710, 80, 150, 50},   "To: ", 4}
     };
 
     for (u32 i = 0; i < TRT_MAX; ++i) {
         text_box_create(&tr_texts[i], trt_params[i].rect);
         text_box_set_color(&tr_texts[i], WHITE);
         text_box_set_text_and_font(&tr_texts[i], trt_params[i].name,
-                                   trt_params[i].len, GetFontDefault());
+                                   trt_params[i].len,
+                                   gs->jet_brains_mono_nerd_medium);
     }
 
-    input_box_create(&tr_input, (Rectangle){140, 30, 100, 10}, 100);
+    input_box_create(&tr_input, (Rectangle){490, 80, 200, 50}, 100);
     input_box_set_colors(&tr_input,
                          (InputBoxColors){.box = BLACK, .text = WHITE});
-    input_box_set_font(&tr_input, GetFontDefault());
+    input_box_set_font(&tr_input, gs->jet_brains_mono_nerd_medium);
 
     struct {
             Rectangle rect;
     } selector_params[NODE_SELECTOR_MAX] = {
-        { 45, 30, 50, 10},
-        {285, 30, 50, 10}
+        {160, 80, 150, 50},
+        {870, 80, 150, 50}
     };
 
     for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i) {
         node_selector_create(&node_selectors[i], selector_params[i].rect);
-        node_selector_set_font(&node_selectors[i], GetFontDefault());
+        node_selector_set_font(&node_selectors[i],
+                               gs->jet_brains_mono_nerd_medium);
     }
+
+    button_create(&tr_button, (Rectangle){1040, 80, 150, 50});
+    button_set_colors(&tr_button, button_colors);
+    button_set_text_and_font(&tr_button, "Add", 3,
+                             gs->jet_brains_mono_nerd_medium);
 }
 
 void editor_unload(GlobalState *gs) {
@@ -216,6 +228,8 @@ void editor_unload(GlobalState *gs) {
     input_box_destroy(&tr_input);
     for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
         node_selector_destroy(&node_selectors[i]);
+
+    button_destroy(&tr_button);
 
     darray_destroy(nodes);
     darray_destroy(tlines);
@@ -243,13 +257,26 @@ ScreenChangeType editor_update(GlobalState *gs) {
         handled = input_box_update(&input_boxes[i], mpos, handled);
 
     if (editor_state == EDITOR_STATE_TRANSITION) {
+        bool show_add_button = true;
         handled = input_box_update(&tr_input, mpos, handled);
         for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i) {
             handled = node_selector_update(
                 &node_selectors[i], nodes, mpos,
                 GetScreenToWorld2D(GetMousePosition(), camera), handled);
             if (node_selectors[i].selected) update_nodes = false;
+            if (node_selectors[i].node == NULL) show_add_button = false;
         }
+
+        u32 len;
+        UNUSED(input_box_get_text(&tr_input, &len));
+        if (!len) show_add_button = false;
+        // TraceLog(LOG_INFO, "Length = %d", len);
+
+        if (show_add_button) button_enable(&tr_button);
+
+        else button_disable(&tr_button);
+        handled = button_update(&tr_button, mpos, handled);
+        if (tr_button.clicked) on_transition_add_button_clicked(gs);
     }
 
     if (selected_node && editor_state == EDITOR_STATE_NODE) {
@@ -290,7 +317,7 @@ ScreenChangeType editor_update(GlobalState *gs) {
         editor_update_nodes_and_tlines(mpos, delta, update_nodes, handled);
     // TraceLog(LOG_INFO, "nodes = %d", handled);
 
-    handled = editor_update_world(mpos, handled);
+    handled = editor_update_world(mpos, gs, handled);
     // TraceLog(LOG_INFO, "world = %d", handled);
 
     return SCREEN_SAME;
@@ -337,6 +364,7 @@ void editor_before_draw(GlobalState *gs) {
         input_box_draw(&tr_input);
         for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
             node_selector_draw(&node_selectors[i]);
+        button_draw(&tr_button);
     }
 
     for (i32 i = 0; i < text_box_max; ++i) text_box_draw(&text_boxes[i]);
@@ -359,7 +387,7 @@ static void editor_update_transforms(void) {
 
     scale = fminf(scale_x, scale_y);
 
-    scale = CLAMP_MIN(scale, 1.0);
+    scale = CLAMP_MIN(scale, 0.3);
 
     source = (Rectangle){0, 0, target.texture.width, -target.texture.height};
     dest = (Rectangle){.width = target.texture.width * scale,
@@ -393,14 +421,15 @@ static void editor_draw_grid(float thick, float spacing, Color color) {
                    thick, color);
 }
 
-static i32 editor_update_world(Vector2 mpos, i32 handled) {
+static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
     if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)
-        && !IS_INPUT_HANDLED(handled, INPUT_RIGHT_BUTTON)) {
+        && !IS_INPUT_HANDLED(handled, INPUT_RIGHT_BUTTON)
+        && editor_state == EDITOR_STATE_NODE) {
         handled = MARK_INPUT_HANDLED(handled, MOUSE_BUTTON_RIGHT);
         Node node;
         node_create(&node, mpos);
         node_set_colors(&node, node_colors);
-        node_set_font(&node, GetFontDefault(), 32);
+        node_set_font(&node, gs->jet_brains_mono_nerd_medium, 32);
         darray_push(&nodes, node);
     }
 
@@ -482,7 +511,7 @@ static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
             handled = node_update(selected_node, mpos, delta, handled);
             if (!selected_node->selected) {
                 selected_node = NULL;
-                input_box_set_text(&input_boxes[INPUT_BOX_NAME], "", 0);
+                input_box_set_text(&input_boxes[INPUT_BOX_NAME], NULL, 0);
             }
         }
         u64 length = darray_get_size(nodes);
@@ -506,10 +535,29 @@ static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
         }
     }
 
+    TLine *prev_selected = selected_tline;
+    if (selected_tline) {
+        handled = tline_update(selected_tline, mpos, handled);
+        if (!selected_tline->selected) {
+            selected_tline = NULL;
+            for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
+                node_selectors[i].node = NULL;
+            input_box_set_text(&tr_input, NULL, 0);
+        }
+    }
+
     u64 length = darray_get_size(tlines);
     for (i32 i = length - 1; i > -1; --i) {
+        if (&tlines[i] == selected_tline) continue;
         handled = tline_update(&tlines[i], mpos, handled);
-        if (tlines[i].selected) selected_tline = &tlines[i];
+        if (tlines[i].selected) {
+            selected_tline = &tlines[i];
+            u32 len;
+            const char *inputs = tline_get_inputs(selected_tline, &len);
+            input_box_set_text(&tr_input, inputs, len);
+            node_selectors[NODE_SELECTOR_FROM].node = selected_tline->start;
+            node_selectors[NODE_SELECTOR_TO].node = selected_tline->end;
+        }
     }
 
     return handled;
@@ -525,11 +573,15 @@ static void on_change_mode_button_clicked(GlobalState *gs) {
     if (editor_state == EDITOR_STATE_NODE) {
         editor_state = EDITOR_STATE_TRANSITION;
         button_set_text_and_font(&buttons[BUTTON_CHANGE_MODE], "Node", 4,
-                                 GetFontDefault());
+                                 gs->jet_brains_mono_nerd_medium);
+        if (selected_node) {
+            selected_node->selected = false;
+            selected_node = NULL;
+        }
     } else if (editor_state == EDITOR_STATE_TRANSITION) {
         editor_state = EDITOR_STATE_NODE;
         button_set_text_and_font(&buttons[BUTTON_CHANGE_MODE], "Transition", 10,
-                                 GetFontDefault());
+                                 gs->jet_brains_mono_nerd_medium);
     }
 }
 
@@ -539,6 +591,30 @@ static void on_simulate_button_clicked(GlobalState *gs) {
 
 static void on_save_button_clicked(GlobalState *gs) {
     UNUSED(gs);
+}
+
+static void on_transition_add_button_clicked(GlobalState *gs) {
+    u32 len;
+    const char *inputs = input_box_get_text(&tr_input, &len);
+    if (!selected_tline) {
+        TLine tline;
+        tline_create(&tline, inputs, len);
+        tline_set_colors(&tline, GREEN);
+        tline_set_start_node(&tline, node_selectors[NODE_SELECTOR_FROM].node);
+        tline_set_end_node(&tline, node_selectors[NODE_SELECTOR_TO].node);
+        tline_set_inputs(&tline, inputs, len);
+
+        darray_push(&tlines, tline);
+    } else {
+        tline_set_start_node(selected_tline,
+                             node_selectors[NODE_SELECTOR_FROM].node);
+        tline_set_end_node(selected_tline,
+                           node_selectors[NODE_SELECTOR_TO].node);
+        tline_set_inputs(selected_tline, inputs, len);
+        selected_tline = NULL;
+    }
+    for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i) node_selectors[i].node = NULL;
+    input_box_set_text(&tr_input, NULL, 0);
 }
 
 Screen editor = {.load = editor_load,

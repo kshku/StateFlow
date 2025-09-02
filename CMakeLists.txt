@@ -11,6 +11,13 @@ set(APP_NAME stateflow)
 
 if(TARGET_PLATFORM STREQUAL "Desktop")
     add_executable(${APP_NAME})
+
+    add_custom_command(
+        TARGET ${APP_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${PROJECT_SOURCE_DIR}/assets ${PROJECT_BINARY_DIR}/assets
+        USES_TERMINAL
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 elseif(TARGET_PLATFORM STREQUAL "Android")
     add_library(${APP_NAME} SHARED)
 endif()

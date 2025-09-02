@@ -15,12 +15,13 @@ void text_box_set_text_and_font(TextBox *tb, const char *text, u32 len,
                                 Font font) {
     char *new_text = (char *)realloc(tb->text, (len + 1) * sizeof(char));
     if (!new_text) return;
-    strncpy(new_text, text, len);
+    for (u32 i = 0; i < len; ++i) new_text[i] = text[i];
     new_text[len] = 0;
     tb->text = new_text;
     tb->font = font;
 
-    Vector2 size = MeasureTextEx(tb->font, tb->text, tb->font_size, 1);
+    // Vector2 size = MeasureTextEx(tb->font, tb->text, tb->rect.height, 1.0f);
+    Vector2 size = MeasureTextEx(tb->font, tb->text, tb->rect.height, 1.0f);
 
     float scale_x = tb->rect.width / size.x;
     float scale_y = tb->rect.height / size.y;

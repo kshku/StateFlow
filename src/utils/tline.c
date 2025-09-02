@@ -1,12 +1,14 @@
 #include "tline.h"
 
+#include <raymath.h>
 #include <stdlib.h>
 
 void tline_create(TLine *tl, const char *inputs, u32 len) {
     tline_set_colors(tl, YELLOW);
     tline_set_start_node(tl, NULL);
     tline_set_end_node(tl, NULL);
-    tline_set_inputs(tl, NULL, 0);
+    tl->inputs = NULL;
+    tl->len = 0;
     tl->pressed = false;
     tl->selected = false;
 }
@@ -42,7 +44,7 @@ const char *tline_get_inputs(TLine *tl, u32 *len) {
 }
 
 i32 tline_update(TLine *tl, Vector2 mpos, i32 handled) {
-    if (CheckCollisionPointLine(mpos, tl->start->center, tl->end->center, 1.0f)
+    if (CheckCollisionPointLine(mpos, tl->start->center, tl->end->center, 5.0f)
         && !IS_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION)) {
         handled = MARK_INPUT_HANDLED(handled, INPUT_MOUSE_POSITION);
 
@@ -71,7 +73,26 @@ i32 tline_update(TLine *tl, Vector2 mpos, i32 handled) {
 }
 
 void tline_draw(TLine *tl) {
-    DrawLineBezier(tl->start->center, tl->end->center, 2.0f, tl->color);
+    if (tl->start && tl->end) {
+        Vector2 center = Vector2Lerp(tl->start->center, tl->end->center, 0.53);
+        Vector2 dir = Vector2Normalize(
+            Vector2Subtract(tl->end->center, tl->start->center));
+        Vector2 perp = {-dir.y, dir.x};
+        Vector2 points[3] = {Vector2Add(center, Vector2Scale(perp, 10)),
+                             Vector2Add(center, Vector2Scale(dir, 20)),
+                             Vector2Add(center, Vector2Scale(perp, -10))};
+
+        Vector2 text_pos = Vector2Add(center, Vector2Scale(perp, 11));
+        // if (dir.x < 0) text_pos = Vector2Add(center, Vector2Scale(perp,
+        // -11));
+
+        // DrawLineBezier(tl->start->center, tl->end->center, 2.0f,
+        //                tl->selected ? BLACK : tl->color);
+        DrawLineEx(tl->start->center, tl->end->center, 3.0f,
+                   tl->selected ? BLACK : tl->color);
+        DrawTriangle(points[0], points[1], points[2], BLACK);
+        DrawTextEx(GetFontDefault(), tl->inputs, text_pos, 32, 1.0f, BLACK);
+    }
 }
 
 void tline_append_input(TLine *tl, const char *input, u32 len) {
@@ -81,4 +102,5 @@ void tline_append_input(TLine *tl, const char *input, u32 len) {
     for (i32 i = tl->len; i < tl->len + len; ++i)
         tl->inputs[i - tl->len] = input[i];
     tl->len += len;
+    tl->inputs[tl->len] = 0;
 }

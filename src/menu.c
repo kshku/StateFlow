@@ -28,11 +28,16 @@ static void menu_update_transforms(void);
 static Vector2 menu_get_transformed_mouse_position(void);
 
 void menu_load(GlobalState *gs) {
-    target = LoadRenderTexture(800, 800);
+    target = LoadRenderTexture(1600, 1600);
     float x = 250;
     float width = 300;
     float height = 32;
-    Rectangle rect = {.x = 250, .y = 250, .width = 300, .height = 32};
+    Rectangle rect;
+    rect.width = target.texture.width / 2;
+    rect.height = target.texture.height / 15;
+    rect.x = (target.texture.width - rect.width) / 2;
+    rect.y = (float)target.texture.height / 4;
+    float diff = (float)target.texture.height / 6;
 
     struct {
             char *name;
@@ -53,9 +58,10 @@ void menu_load(GlobalState *gs) {
     for (i32 i = 0; i < BUTTON_MAX; ++i) {
         button_create(&buttons[i], rect);
         button_set_text_and_font(&buttons[i], button_texts[i].name,
-                                 button_texts[i].len, GetFontDefault());
+                                 button_texts[i].len,
+                                 gs->jet_brains_mono_nerd_medium);
         button_set_colors(&buttons[i], colors);
-        rect.y += rect.height + 100;
+        rect.y += rect.height + diff;
     }
 
     menu_update_transforms();
@@ -111,7 +117,7 @@ static void menu_update_transforms(void) {
 
     scale = fminf(scale_x, scale_y);
 
-    scale = CLAMP_MIN(scale, 0.7);
+    scale = CLAMP_MIN(scale, 0.3);
 
     source = (Rectangle){0, 0, target.texture.width, -target.texture.height};
     dest = (Rectangle){.width = target.texture.width * scale,

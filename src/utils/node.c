@@ -49,11 +49,11 @@ void node_set_name(Node *n, const char *name, u32 len) {
     n->name = new_name;
 
     Vector2 size = MeasureTextEx(n->font, n->name, n->font_size, 1.0f);
-    n->radius = CLAMP_MIN((size.x / 2) + 10.0f, NODE_MINIMUM_RADIUS);
+    n->radius = CLAMP_MIN((size.x / 2.0f) + 10.0f, NODE_MINIMUM_RADIUS);
 
     n->position = (Vector2){
-        .x = n->center.x - (size.x / 2),
-        .y = n->center.y - (size.y / 2),
+        .x = n->center.x - (size.x / 2.0f),
+        .y = n->center.y - (size.y / 2.0f),
     };
 }
 
@@ -100,12 +100,16 @@ void node_draw(Node *n) {
                n->colors.text);
 
     if (n->initial_state) {
+        // DrawSplineLinear(n->points, 3, 3.0f, BLACK);
         Vector2 points[3] = {
-            {n->center.x - (n->radius * 1.5), n->center.y - (n->radius * 0.5)},
-            {        n->center.x - n->radius,                     n->center.y},
-            {n->center.x - (n->radius * 1.5), n->center.y + (n->radius * 0.5)}
+
+            {n->center.x - (n->radius * 1.5f),
+             n->center.y - (n->radius * 0.5f)             },
+            {         n->center.x - n->radius, n->center.y},
+            {n->center.x - (n->radius * 1.5f),
+             n->center.y + (n->radius * 0.5f)             }
         };
-        DrawSplineLinear(points, 3, 3.0f, BLACK);
+        DrawTriangle(points[2], points[1], points[0], BLACK);
     }
 }
 

@@ -8,7 +8,6 @@ void node_selector_create(NodeSelector *ns, Rectangle rect) {
     ns->selected = false;
     ns->rect = rect;
     ns->font_size = rect.height;
-    ns->font = GetFontDefault();
     node_selector_set_font(ns, GetFontDefault());
 }
 

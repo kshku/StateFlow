@@ -13,6 +13,7 @@ void input_box_create(InputBox *ib, Rectangle rect, u32 max_len) {
     ib->max_len = max_len;
     ib->text = (char *)calloc((max_len + 1), sizeof(char));
     if (!ib->text) {
+        TraceLog(LOG_ERROR, "Failed to allocate memory");
         ib->max_len = 0;
         return;
     }
@@ -28,13 +29,16 @@ void input_box_set_font(InputBox *ib, Font font) {
     ib->font = font;
 
     Vector2 size = MeasureTextEx(ib->font, "A", ib->font_size, 1.0f);
-    ib->chars_to_show = (u32)ib->rect.width / size.x;
-    TraceLog(LOG_INFO, "chars_to_show = %d", ib->chars_to_show);
+    ib->chars_to_show = (u32)(ib->rect.width / size.x);
+    ib->chars_to_show -= 1;
+    // TraceLog(LOG_INFO, "chars_to_show = %d", ib->chars_to_show);
 
-    ib->position = (Vector2){
-        .x = ib->rect.x
-           + ((ib->rect.width - ((ib->chars_to_show - 1) * size.x)) / 2),
-        .y = ib->rect.y + ((ib->rect.height - size.y) / 2)};
+    ib->position = (Vector2){.x = ib->rect.x, .y = ib->rect.y};
+
+    // ib->position = (Vector2){
+    //     .x = ib->rect.x
+    //        + ((ib->rect.width - ((ib->chars_to_show - 1) * size.x)) / 2.0f),
+    //     .y = ib->rect.y + ((ib->rect.height - size.y) / 2.0f)};
 }
 
 void input_box_destroy(InputBox *ib) {
@@ -47,10 +51,13 @@ void input_box_set_colors(InputBox *ib, InputBoxColors colors) {
 
 void input_box_draw(InputBox *ib) {
     DrawRectangleRec(ib->rect, ib->colors.box);
-    u32 idx = 0;
-    if (ib->index >= ib->chars_to_show) idx = ib->index - ib->chars_to_show;
+    // u32 idx = 0;
+    // if (ib->index >= ib->chars_to_show) idx = ib->index - ib->chars_to_show +
+    // +1 for the underscore (cursor)
+    u32 idx = CLAMP_MIN((i32)(ib->index - ib->chars_to_show + 1), 0);
+    // 1;
 
-    if (ib->focused && ib->index < ib->max_len - 1) {
+    if (ib->focused && ib->index < ib->max_len) {
         ib->text[ib->index + 1] = 0;
         if (((ib->frame_counter / 20) % 2) == 0) ib->text[ib->index] = '_';
         else ib->text[ib->index] = 0;
@@ -96,7 +103,7 @@ i32 input_box_update(InputBox *ib, Vector2 mpos, i32 handled) {
     }
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
-        && !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)) {
+        /*&& !IS_INPUT_HANDLED(handled, INPUT_LEFT_BUTTON)*/) {
         ib->focused = false;
         SetMouseCursor(MOUSE_CURSOR_ARROW);
         // TraceLog(LOG_INFO, "Unfocused!");
@@ -131,11 +138,13 @@ const char *input_box_get_text(InputBox *ib, u32 *len) {
 void input_box_set_text(InputBox *ib, const char *text, u32 len) {
     for (ib->index = 0; ib->index < len && ib->index < ib->max_len; ++ib->index)
         ib->text[ib->index] = text[ib->index];
+    ib->text[ib->index] = 0;
 }
 
 void input_box_append_text(InputBox *ib, const char *text, u32 len) {
     for (u32 i = 0; i < len && ib->index < ib->max_len; ++ib->index, ++i)
         ib->text[ib->index] = text[i];
+    ib->text[ib->index] = 0;
 }
 
 void input_box_append_text_at(InputBox *ib, const char *text, u32 len,
@@ -144,4 +153,5 @@ void input_box_append_text_at(InputBox *ib, const char *text, u32 len,
     for (i = 0, ib->index = idx; i < len && ib->index < ib->max_len;
          ++i, ++ib->index)
         ib->text[ib->index] = text[i];
+    ib->text[ib->index] = 0;
 }

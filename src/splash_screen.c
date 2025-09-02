@@ -18,17 +18,17 @@ static Color bg = DARKGRAY;
 static void splash_screen_update_transforms(void);
 
 void splash_screen_load(GlobalState *gs) {
-    target = LoadRenderTexture(800, 600);
+    target = LoadRenderTexture(1600, 1200);
     state = 0;
     frame_count = 0;
     letters_count = 0;
-    top_left = bottom_right = 16;
-    logo_x = (target.texture.width / 2) - 128;
-    logo_y = (target.texture.height / 2) - 64;
+    top_left = bottom_right = 32;
+    logo_x = (target.texture.width / 2) - 256;
+    logo_y = (target.texture.height / 2) - 128;
 
-    int width = MeasureText("StateFlow", 100);
+    int width = MeasureText("StateFlow", 200);
     position =
-        (Vector2){.x = (target.texture.width - width) / 2, .y = logo_y - 150};
+        (Vector2){.x = (target.texture.width - width) / 2, .y = logo_y - 300};
 
     splash_screen_update_transforms();
 }
@@ -54,17 +54,17 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
             break;
         case 1:
             alpha_diff = 0.002;
-            top_left += 8;
-            if (top_left >= 256) state = 2;
+            top_left += 16;
+            if (top_left >= 512) state = 2;
             break;
         case 2:
             alpha_diff = 0.004;
-            bottom_right += 8;
-            if (bottom_right >= 256) state = 3;
+            bottom_right += 16;
+            if (bottom_right >= 512) state = 3;
             break;
         case 3:
             alpha_diff = 0.008;
-            bottom_right += 8;
+            // bottom_right += 16;
             frame_count++;
             if (letters_count < 10 && frame_count / 12) {
                 letters_count++;
@@ -92,34 +92,34 @@ void splash_screen_before_draw(GlobalState *gs) {
     switch (state) {
         case 0:
             if ((frame_count / 10) % 2)
-                DrawRectangle(logo_x, logo_y, 16, 16, BLACK);
+                DrawRectangle(logo_x, logo_y, 32, 32, BLACK);
             break;
         case 1:
-            DrawRectangle(logo_x, logo_y, top_left, 16, BLACK);
-            DrawRectangle(logo_x, logo_y, 16, top_left, BLACK);
+            DrawRectangle(logo_x, logo_y, top_left, 32, BLACK);
+            DrawRectangle(logo_x, logo_y, 32, top_left, BLACK);
             break;
         case 2:
-            DrawRectangle(logo_x, logo_y, 256, 16, BLACK);
-            DrawRectangle(logo_x, logo_y, 16, 256, BLACK);
+            DrawRectangle(logo_x, logo_y, 512, 32, BLACK);
+            DrawRectangle(logo_x, logo_y, 32, 512, BLACK);
 
-            DrawRectangle(logo_x + 256 - 16, logo_y, 16, bottom_right, BLACK);
-            DrawRectangle(logo_x, logo_y + 256 - 16, bottom_right, 16, BLACK);
+            DrawRectangle(logo_x + 512 - 32, logo_y, 32, bottom_right, BLACK);
+            DrawRectangle(logo_x, logo_y + 512 - 32, bottom_right, 32, BLACK);
             break;
         case 3:
-            DrawRectangle(logo_x, logo_y, 256, 256, BLACK);
-            DrawRectangle(logo_x + 16, logo_y + 16, 256 - (2 * 16),
-                          256 - (2 * 16), bg);
+            DrawRectangle(logo_x, logo_y, 512, 512, BLACK);
+            DrawRectangle(logo_x + 32, logo_y + 32, 512 - (2 * 32),
+                          512 - (2 * 32), bg);
 
             DrawText(TextSubtext("raylib", 0, letters_count),
-                     (target.texture.width / 2) - 44,
-                     (target.texture.height / 2) + 48 + 64, 50, BLACK);
+                     (target.texture.width / 2) - 88,
+                     (target.texture.height / 2) + 96 + 128, 100, BLACK);
 
             if (frame_count > 20)
-                DrawText("powered by", logo_x, logo_y - 27, 20, LIGHTGRAY);
+                DrawText("powered by", logo_x, logo_y - 54, 40, LIGHTGRAY);
             break;
     }
 
-    DrawText("StateFlow", position.x, position.y, 100,
+    DrawText("StateFlow", position.x, position.y, 200,
              Fade((Color){50, 200, 255, 255}, alpha));
 
     EndTextureMode();
@@ -138,7 +138,7 @@ static void splash_screen_update_transforms(void) {
     float scale_y = (float)height / target.texture.height;
     scale = fminf(scale_x, scale_y);
 
-    scale = CLAMP_MIN(scale, 0.6);
+    scale = CLAMP_MIN(scale, 0.3);
 
     source = (Rectangle){0, 0, target.texture.width, -target.texture.height};
 
