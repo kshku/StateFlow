@@ -13,7 +13,7 @@ typedef enum ScreenChangeType {
 
 typedef struct GlobalState {
         Screen *next_screen;
-        Font jet_brains_mono_nerd_medium;
+        Font font;
         // i32 virtual_width;
         // i32 virtual_height;
         // Camera2D camera;

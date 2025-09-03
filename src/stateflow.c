@@ -18,9 +18,9 @@ void stateflow_initialize(void) {
 
     SetTargetFPS(60);
 
-    gs.jet_brains_mono_nerd_medium =
-        LoadFont("assets/JetBrainsMonoNerdFont-Medium.ttf");
-    // LoadFontEx("assets/JetBrainsMonoNerdFont-Regular.ttf", 100, NULL, 0);
+    gs.font =
+        // LoadFont("assets/JetBrainsMonoNerdFont-Medium.ttf");
+        LoadFontEx("assets/FiraCodeNerdFontMono-Bold.ttf", 144, NULL, 0);
 
     state.current_screen = &splash_screen;
     state.current_screen->load(&gs);
@@ -29,7 +29,7 @@ void stateflow_initialize(void) {
 void stateflow_shutdown(void) {
     state.current_screen->unload(&gs);
 
-    UnloadFont(gs.jet_brains_mono_nerd_medium);
+    UnloadFont(gs.font);
 
     CloseWindow();
 }

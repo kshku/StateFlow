@@ -31,9 +31,9 @@ void menu_load(GlobalState *gs) {
     target = LoadRenderTexture(1600, 1600);
     float x = 250;
     float width = 300;
-    float height = 32;
+    float height = 48;
     Rectangle rect;
-    rect.width = target.texture.width / 2;
+    rect.width = (target.texture.width / 3) * 2;
     rect.height = target.texture.height / 15;
     rect.x = (target.texture.width - rect.width) / 2;
     rect.y = (float)target.texture.height / 4;
@@ -58,8 +58,7 @@ void menu_load(GlobalState *gs) {
     for (i32 i = 0; i < BUTTON_MAX; ++i) {
         button_create(&buttons[i], rect);
         button_set_text_and_font(&buttons[i], button_texts[i].name,
-                                 button_texts[i].len,
-                                 gs->jet_brains_mono_nerd_medium);
+                                 button_texts[i].len, gs->font);
         button_set_colors(&buttons[i], colors);
         rect.y += rect.height + diff;
     }

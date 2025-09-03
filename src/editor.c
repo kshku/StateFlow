@@ -112,26 +112,25 @@ void editor_load(GlobalState *gs) {
             const char *name;
             u32 len;
     } text_params[TEXT_BOX_MAX] = {
-        { {10, 10, 200, 50},        "Alphabet",  8},
-        { {10, 80, 100, 50},            "Name",  4},
-        {{510, 80, 250, 50},   "Initial state", 13},
-        {{840, 80, 250, 50}, "Accepting state", 15},
+        { {10, 10, 200, 48},        "Alphabet",  8},
+        { {10, 90, 100, 48},            "Name",  4},
+        {{510, 90, 250, 48},   "Initial state", 13},
+        {{840, 90, 250, 48}, "Accepting state", 15},
     };
 
     for (i32 i = 0; i < TEXT_BOX_MAX; ++i) {
         text_box_create(&text_boxes[i], text_params[i].rect);
         text_box_set_color(&text_boxes[i], WHITE);
         text_box_set_text_and_font(&text_boxes[i], text_params[i].name,
-                                   text_params[i].len,
-                                   gs->jet_brains_mono_nerd_medium);
+                                   text_params[i].len, gs->font);
     }
 
     struct {
             Rectangle rect;
             u32 max_len;
     } input_params[INPUT_BOX_MAX] = {
-        {{220, 10, 470, 50}, 100},
-        {{120, 80, 370, 50},  15}
+        {{220, 10, 470, 48}, 100},
+        {{120, 90, 370, 48},  15}
     };
 
     for (i32 i = 0; i < INPUT_BOX_MAX; ++i) {
@@ -139,12 +138,12 @@ void editor_load(GlobalState *gs) {
                          input_params[i].max_len);
         input_box_set_colors(&input_boxes[i],
                              (InputBoxColors){.box = BLACK, .text = WHITE});
-        input_box_set_font(&input_boxes[i], gs->jet_brains_mono_nerd_medium);
+        input_box_set_font(&input_boxes[i], gs->font);
     }
 
     Rectangle check_box_rects[CHECK_BOX_MAX] = {
-        { 770, 80, 50, 50},
-        {1100, 80, 50, 50}
+        { 770, 90, 50, 48},
+        {1100, 90, 50, 48}
     };
 
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) {
@@ -157,9 +156,9 @@ void editor_load(GlobalState *gs) {
             const char *text;
             u32 len;
     } button_params[BUTTON_MAX] = {
-        { {740, 10, 200, 50}, "Transition", 10},
-        { {960, 10, 200, 50},   "Simulate",  8},
-        {{1180, 10, 200, 50},       "Save",  4}
+        { {740, 10, 250, 48}, "Transition", 10},
+        {{1020, 10, 250, 48},   "Simulate",  8},
+        {{1300, 10, 250, 48},       "Save",  4}
     };
 
     ButtonColors button_colors = {.text = GREEN,
@@ -173,8 +172,7 @@ void editor_load(GlobalState *gs) {
         button_create(&buttons[i], button_params[i].rect);
         button_set_colors(&buttons[i], button_colors);
         button_set_text_and_font(&buttons[i], button_params[i].text,
-                                 button_params[i].len,
-                                 gs->jet_brains_mono_nerd_medium);
+                                 button_params[i].len, gs->font);
     }
 
     struct {
@@ -182,41 +180,38 @@ void editor_load(GlobalState *gs) {
             const char *name;
             u32 len;
     } trt_params[TRT_MAX] = {
-        { {10, 80, 150, 50}, "From: ", 6},
-        {{330, 80, 150, 50}, "Input:", 6},
-        {{710, 80, 150, 50},   "To: ", 4}
+        { {10, 80, 150, 48}, "From: ", 6},
+        {{330, 80, 150, 48}, "Input:", 6},
+        {{710, 80, 150, 48},   "To: ", 4}
     };
 
     for (u32 i = 0; i < TRT_MAX; ++i) {
         text_box_create(&tr_texts[i], trt_params[i].rect);
         text_box_set_color(&tr_texts[i], WHITE);
         text_box_set_text_and_font(&tr_texts[i], trt_params[i].name,
-                                   trt_params[i].len,
-                                   gs->jet_brains_mono_nerd_medium);
+                                   trt_params[i].len, gs->font);
     }
 
-    input_box_create(&tr_input, (Rectangle){490, 80, 200, 50}, 100);
+    input_box_create(&tr_input, (Rectangle){490, 90, 200, 48}, 100);
     input_box_set_colors(&tr_input,
                          (InputBoxColors){.box = BLACK, .text = WHITE});
-    input_box_set_font(&tr_input, gs->jet_brains_mono_nerd_medium);
+    input_box_set_font(&tr_input, gs->font);
 
     struct {
             Rectangle rect;
     } selector_params[NODE_SELECTOR_MAX] = {
-        {160, 80, 150, 50},
-        {870, 80, 150, 50}
+        {160, 90, 150, 48},
+        {870, 90, 150, 48}
     };
 
     for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i) {
         node_selector_create(&node_selectors[i], selector_params[i].rect);
-        node_selector_set_font(&node_selectors[i],
-                               gs->jet_brains_mono_nerd_medium);
+        node_selector_set_font(&node_selectors[i], gs->font);
     }
 
-    button_create(&tr_button, (Rectangle){1040, 80, 150, 50});
+    button_create(&tr_button, (Rectangle){1040, 90, 150, 48});
     button_set_colors(&tr_button, button_colors);
-    button_set_text_and_font(&tr_button, "Add", 3,
-                             gs->jet_brains_mono_nerd_medium);
+    button_set_text_and_font(&tr_button, "Add", 3, gs->font);
 }
 
 void editor_unload(GlobalState *gs) {
@@ -429,7 +424,7 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
         Node node;
         node_create(&node, mpos);
         node_set_colors(&node, node_colors);
-        node_set_font(&node, gs->jet_brains_mono_nerd_medium, 32);
+        node_set_font(&node, gs->font, 32);
         darray_push(&nodes, node);
     }
 
@@ -447,9 +442,9 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
                 u64 len = darray_get_size(nodes);
                 for (u32 i = 0; i < len; ++i) {
                     if (&nodes[i] == selected_node) {
-                        darray_pop_at(&nodes, i, NULL);
                         node_destroy(selected_node);
                         selected_node = NULL;
+                        darray_pop_at(&nodes, i, NULL);
                         break;
                     }
                 }
@@ -458,9 +453,14 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
                 u64 len = darray_get_size(tlines);
                 for (u32 i = 0; i < len; ++i) {
                     if (&tlines[i] == selected_tline) {
-                        darray_pop_at(&tlines, i, NULL);
                         tline_destroy(selected_tline);
                         selected_tline = NULL;
+
+                        for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
+                            node_selectors[i].node = NULL;
+                        input_box_set_text(&tr_input, NULL, 0);
+
+                        darray_pop_at(&tlines, i, NULL);
                         break;
                     }
                 }
@@ -497,7 +497,7 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
         camera.offset = GetMousePosition();
         camera.target = mpos;
         float scale = 0.2f * wheel;
-        camera.zoom = Clamp(expf(logf(camera.zoom) + scale), 0.125f, 64.0f);
+        camera.zoom = Clamp(expf(logf(camera.zoom) + scale), 0.125f, 48.0f);
     }
 
     return handled;
@@ -573,7 +573,7 @@ static void on_change_mode_button_clicked(GlobalState *gs) {
     if (editor_state == EDITOR_STATE_NODE) {
         editor_state = EDITOR_STATE_TRANSITION;
         button_set_text_and_font(&buttons[BUTTON_CHANGE_MODE], "Node", 4,
-                                 gs->jet_brains_mono_nerd_medium);
+                                 gs->font);
         if (selected_node) {
             selected_node->selected = false;
             selected_node = NULL;
@@ -581,7 +581,7 @@ static void on_change_mode_button_clicked(GlobalState *gs) {
     } else if (editor_state == EDITOR_STATE_TRANSITION) {
         editor_state = EDITOR_STATE_NODE;
         button_set_text_and_font(&buttons[BUTTON_CHANGE_MODE], "Transition", 10,
-                                 gs->jet_brains_mono_nerd_medium);
+                                 gs->font);
     }
 }
 
@@ -598,11 +598,12 @@ static void on_transition_add_button_clicked(GlobalState *gs) {
     const char *inputs = input_box_get_text(&tr_input, &len);
     if (!selected_tline) {
         TLine tline;
-        tline_create(&tline, inputs, len);
+        tline_create(&tline);
         tline_set_colors(&tline, GREEN);
         tline_set_start_node(&tline, node_selectors[NODE_SELECTOR_FROM].node);
         tline_set_end_node(&tline, node_selectors[NODE_SELECTOR_TO].node);
         tline_set_inputs(&tline, inputs, len);
+        tline_set_font(&tline, gs->font);
 
         darray_push(&tlines, tline);
     } else {
