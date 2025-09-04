@@ -3,9 +3,12 @@
 #include <raymath.h>
 #include <stdlib.h>
 
-bool check_collision_point_bezier_cubic(Vector2 point, Vector2 p0, Vector2 p1,
-                                        Vector2 p2, Vector2 p3, float thickness,
-                                        u32 segments);
+static bool check_collision_point_bezier_cubic(Vector2 point, Vector2 p0,
+                                               Vector2 p1, Vector2 p2,
+                                               Vector2 p3, float thickness,
+                                               u32 segments);
+
+static void tlines_process_input(TLine *tl);
 
 void tline_create(TLine *tl) {
     tline_set_colors(tl, YELLOW);
@@ -41,11 +44,12 @@ void tline_set_end_node(TLine *tl, Node *n) {
 void tline_set_inputs(TLine *tl, const char *inputs, u32 len) {
     char *new_inputs = (char *)realloc(tl->inputs, (len + 1) * sizeof(char));
     if (!new_inputs) return;
-    TraceLog(LOG_INFO, "%s", inputs);
+    // TraceLog(LOG_INFO, "%s", inputs);
     for (u32 i = 0; i < len; ++i) new_inputs[i] = inputs[i];
     new_inputs[len] = 0;
     tl->inputs = new_inputs;
     tl->len = len;
+    tlines_process_input(tl);
 }
 
 const char *tline_get_inputs(TLine *tl, u32 *len) {
@@ -107,7 +111,7 @@ void tline_draw(TLine *tl) {
     if (tl->start && tl->end) {
         if (tl->start != tl->end) {
             Vector2 center =
-                Vector2Lerp(tl->start->center, tl->end->center, 0.53);
+                Vector2Lerp(tl->start->center, tl->end->center, 0.75);
             Vector2 dir = Vector2Normalize(
                 Vector2Subtract(tl->end->center, tl->start->center));
             Vector2 perp = {-dir.y, dir.x};
@@ -140,19 +144,22 @@ void tline_draw(TLine *tl) {
     }
 }
 
-void tline_append_input(TLine *tl, const char *input, u32 len) {
+void tline_append_inputs(TLine *tl, const char *input, u32 len) {
     char *new_input =
         (char *)realloc(tl->inputs, (tl->len + len + 1) * sizeof(char));
     if (!new_input) return;
     for (i32 i = tl->len; i < tl->len + len; ++i)
-        tl->inputs[i - tl->len] = input[i];
+        new_input[i] = input[i - tl->len];
+    tl->inputs = new_input;
     tl->len += len;
     tl->inputs[tl->len] = 0;
+    tlines_process_input(tl);
 }
 
-bool check_collision_point_bezier_cubic(Vector2 mpos, Vector2 p0, Vector2 p1,
-                                        Vector2 p2, Vector2 p3, float thickness,
-                                        u32 segments) {
+static bool check_collision_point_bezier_cubic(Vector2 mpos, Vector2 p0,
+                                               Vector2 p1, Vector2 p2,
+                                               Vector2 p3, float thickness,
+                                               u32 segments) {
     Vector2 prev = p0;
 
     for (u32 i = 1; i <= segments; i++) {
@@ -171,4 +178,14 @@ bool check_collision_point_bezier_cubic(Vector2 mpos, Vector2 p0, Vector2 p1,
         prev = pos;
     }
     return false;
+}
+
+static void tlines_process_input(TLine *tl) {
+    char buf[128] = {0};
+    for (u32 i = 0; tl->inputs[i]; ++i) buf[tl->inputs[i]]++;
+    tl->len = 0;
+    for (u32 i = 0; i < 128; ++i)
+        if (buf[i]) tl->inputs[tl->len++] = (char)i;
+
+    tl->inputs[tl->len] = 0;
 }

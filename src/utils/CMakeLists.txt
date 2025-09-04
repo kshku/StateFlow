@@ -15,6 +15,12 @@ set(SRCS
     tline.c
     node_selector.h
     node_selector.c
+    nfa.h
+    nfa.c
+    dfa.h
+    dfa.c
+    strops.h
+    strops.c
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})

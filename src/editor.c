@@ -5,7 +5,9 @@
 #include "utils/button.h"
 #include "utils/checkbox.h"
 #include "utils/darray.h"
+#include "utils/dfa.h"
 #include "utils/input.h"
+#include "utils/nfa.h"
 #include "utils/node.h"
 #include "utils/node_selector.h"
 #include "utils/text.h"
@@ -20,11 +22,13 @@ static Camera2D camera;
 static RenderTexture2D target;
 static float scale;
 static Rectangle source, dest;
-static Node *nodes;  // Darray
 static Node *selected_node;
-static TLine *tlines;  // Darray
 static TLine *selected_tline;
 static EditorState editor_state;
+static bool change_screen = false;
+static DfaState dfa_state;
+static NfaState nfa_state;
+static bool show_fsm_status = false;
 
 enum { NODE_SELECTOR_FROM = 0, NODE_SELECTOR_TO, NODE_SELECTOR_MAX };
 
@@ -86,8 +90,9 @@ static Vector2 editor_get_transformed_mouse_position(void);
 
 static void editor_update_transforms(void);
 
-static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
-                                          bool update_nodes, i32 handled);
+static i32 editor_update_nodes_and_tlines(GlobalState *gs, Vector2 mpos,
+                                          Vector2 delta, bool update_nodes,
+                                          i32 handled);
 
 static void on_transition_add_button_clicked(GlobalState *gs);
 
@@ -104,8 +109,6 @@ void editor_load(GlobalState *gs) {
     target = LoadRenderTexture(1600, 160);
 
     editor_state = EDITOR_STATE_NODE;
-    nodes = darray_create(Node);
-    tlines = darray_create(TLine);
 
     struct {
             Rectangle rect;
@@ -114,8 +117,8 @@ void editor_load(GlobalState *gs) {
     } text_params[TEXT_BOX_MAX] = {
         { {10, 10, 200, 48},        "Alphabet",  8},
         { {10, 90, 100, 48},            "Name",  4},
-        {{510, 90, 250, 48},   "Initial state", 13},
-        {{840, 90, 250, 48}, "Accepting state", 15},
+        {{510, 90, 350, 48},   "Initial state", 13},
+        {{940, 90, 350, 48}, "Accepting state", 15},
     };
 
     for (i32 i = 0; i < TEXT_BOX_MAX; ++i) {
@@ -142,8 +145,8 @@ void editor_load(GlobalState *gs) {
     }
 
     Rectangle check_box_rects[CHECK_BOX_MAX] = {
-        { 770, 90, 50, 48},
-        {1100, 90, 50, 48}
+        { 870, 90, 50, 48},
+        {1300, 90, 50, 48}
     };
 
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) {
@@ -226,9 +229,6 @@ void editor_unload(GlobalState *gs) {
 
     button_destroy(&tr_button);
 
-    darray_destroy(nodes);
-    darray_destroy(tlines);
-
     UnloadRenderTexture(target);
 }
 
@@ -256,7 +256,7 @@ ScreenChangeType editor_update(GlobalState *gs) {
         handled = input_box_update(&tr_input, mpos, handled);
         for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i) {
             handled = node_selector_update(
-                &node_selectors[i], nodes, mpos,
+                &node_selectors[i], gs->nodes, mpos,
                 GetScreenToWorld2D(GetMousePosition(), camera), handled);
             if (node_selectors[i].selected) update_nodes = false;
             if (node_selectors[i].node == NULL) show_add_button = false;
@@ -309,12 +309,13 @@ ScreenChangeType editor_update(GlobalState *gs) {
     // TraceLog(LOG_INFO, "Delta: (%f, %f)", delta.x, delta.y);
 
     handled =
-        editor_update_nodes_and_tlines(mpos, delta, update_nodes, handled);
+        editor_update_nodes_and_tlines(gs, mpos, delta, update_nodes, handled);
     // TraceLog(LOG_INFO, "nodes = %d", handled);
 
     handled = editor_update_world(mpos, gs, handled);
     // TraceLog(LOG_INFO, "world = %d", handled);
 
+    if (change_screen) return SCREEN_CHANGE;
     return SCREEN_SAME;
 }
 
@@ -324,12 +325,13 @@ void editor_draw(GlobalState *gs) {
 
     editor_draw_grid(1.0f, 100.0f, GRAY);
 
-    DrawText("DFA EDITOR!", 5000, 200, 32, WHITE);
+    DrawText(gs->fsm_type == FSM_TYPE_DFA ? "DFA EDITOR!" : "NFA EDITOR", 5000,
+             200, 32, WHITE);
 
-    u64 length = darray_get_size(tlines);
-    for (u32 i = 0; i < length; ++i) tline_draw(&tlines[i]);
-    length = darray_get_size(nodes);
-    for (u32 i = 0; i < length; ++i) node_draw(&nodes[i]);
+    u64 length = darray_get_size(gs->tlines);
+    for (u32 i = 0; i < length; ++i) tline_draw(&gs->tlines[i]);
+    length = darray_get_size(gs->nodes);
+    for (u32 i = 0; i < length; ++i) node_draw(&gs->nodes[i]);
     if (selected_tline && editor_state == EDITOR_STATE_TRANSITION)
         tline_draw(selected_tline);
     if (selected_node && editor_state == EDITOR_STATE_NODE)
@@ -342,6 +344,78 @@ void editor_draw(GlobalState *gs) {
     // if (selected_node)
     //     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f,
     //     WHITE);
+
+    if (!show_fsm_status) return;
+    Vector2 pos = {.x = 10, .y = GetScreenHeight() - 25};
+    if (gs->fsm_type == FSM_TYPE_DFA) {
+        switch (dfa_state) {
+            case DFA_STATE_EMPTY_ALPHABET:
+                DrawTextEx(gs->font, "Alphabet is not given!", pos, 24, 1.0f,
+                           RED);
+                break;
+            case DFA_STATE_NO_INITIAL_STATE:
+                DrawTextEx(gs->font, "Initial state is not selected!", pos, 24,
+                           1.0f, RED);
+                break;
+            case DFA_STATE_NO_ACCEPTING_STATE:
+                DrawTextEx(gs->font, "There is no accepting state!", pos, 24,
+                           1.0f, RED);
+                break;
+            case DFA_STATE_INPUT_INVALID:
+                DrawTextEx(gs->font, "Input of a state is not in the alphabet",
+                           pos, 24, 1.0f, RED);
+                break;
+            case DFA_STATE_REQUIRE_ALL_INPUT_TRANSITIONS:
+                DrawTextEx(gs->font,
+                           "Every state must have all possible transitions "
+                           "defined!",
+                           pos, 24, 1.0f, RED);
+                break;
+            case DFA_STATE_MULTIPLE_TRANSITIONS_DEFINED:
+                DrawTextEx(gs->font,
+                           "Multiple transitions having same input are not "
+                           "allowed!",
+                           pos, 24, 1.0f, RED);
+                break;
+            case DFA_STATE_ACCEPTING_STATE_NOT_REACHABLE:
+                DrawTextEx(gs->font, "No path to reach accepting state!", pos,
+                           24, 1.0f, RED);
+                break;
+            case DFA_STATE_OK:
+            default:
+                // DrawTextEx(gs->font, "DFA is configured correctly!", pos, 24,
+                //            1.0f, GREEN);
+                break;
+        }
+    } else if (gs->fsm_type == FSM_TYPE_NFA) {
+        switch (nfa_state) {
+            case NFA_STATE_EMPTY_ALPHABET:
+                DrawTextEx(gs->font, "Alphabet is not given!", pos, 24, 1.0f,
+                           RED);
+                break;
+            case NFA_STATE_NO_INITIAL_STATE:
+                DrawTextEx(gs->font, "Initial state is not selected!", pos, 24,
+                           1.0f, RED);
+                break;
+            case NFA_STATE_NO_ACCEPTING_STATE:
+                DrawTextEx(gs->font, "There is no accepting state!", pos, 24,
+                           1.0f, RED);
+                break;
+            case NFA_STATE_INPUT_INVALID:
+                DrawTextEx(gs->font, "Input of a state is not in the alphabet",
+                           pos, 24, 1.0f, RED);
+                break;
+            case NFA_STATE_ACCEPTING_STATE_NOT_REACHABLE:
+                DrawTextEx(gs->font, "No path to reach accepting state!", pos,
+                           24, 1.0f, RED);
+                break;
+            case NFA_STATE_OK:
+            default:
+                // DrawTextEx(gs->font, "NFA is configured correctly!", pos, 24,
+                //            1.0f, GREEN);
+                break;
+        }
+    }
 }
 
 void editor_before_draw(GlobalState *gs) {
@@ -425,7 +499,7 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
         node_create(&node, mpos);
         node_set_colors(&node, node_colors);
         node_set_font(&node, gs->font, 32);
-        darray_push(&nodes, node);
+        darray_push(&gs->nodes, node);
     }
 
     if (!IS_INPUT_HANDLED(handled, INPUT_KEYSTROKES)) {
@@ -437,22 +511,28 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
             if (IsKeyDown(navigation_keys[i][3])) camera.target.y += 10;
         }
 
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            gs->next_screen = &menu;
+            change_screen = true;
+            return handled;
+        }
+
         if (IsKeyPressed(KEY_DELETE)) {
             if (selected_node && editor_state == EDITOR_STATE_NODE) {
-                u64 len = darray_get_size(nodes);
+                u64 len = darray_get_size(gs->nodes);
                 for (u32 i = 0; i < len; ++i) {
-                    if (&nodes[i] == selected_node) {
+                    if (&gs->nodes[i] == selected_node) {
                         node_destroy(selected_node);
                         selected_node = NULL;
-                        darray_pop_at(&nodes, i, NULL);
+                        darray_pop_at(&gs->nodes, i, NULL);
                         break;
                     }
                 }
             } else if (selected_tline
                        && editor_state == EDITOR_STATE_TRANSITION) {
-                u64 len = darray_get_size(tlines);
+                u64 len = darray_get_size(gs->tlines);
                 for (u32 i = 0; i < len; ++i) {
-                    if (&tlines[i] == selected_tline) {
+                    if (&gs->tlines[i] == selected_tline) {
                         tline_destroy(selected_tline);
                         selected_tline = NULL;
 
@@ -460,7 +540,7 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
                             node_selectors[i].node = NULL;
                         input_box_set_text(&tr_input, NULL, 0);
 
-                        darray_pop_at(&tlines, i, NULL);
+                        darray_pop_at(&gs->tlines, i, NULL);
                         break;
                     }
                 }
@@ -503,8 +583,9 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
     return handled;
 }
 
-static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
-                                          bool update_nodes, i32 handled) {
+static i32 editor_update_nodes_and_tlines(GlobalState *gs, Vector2 mpos,
+                                          Vector2 delta, bool update_nodes,
+                                          i32 handled) {
     if (update_nodes) {
         Node *prev_selected = selected_node;
         if (selected_node) {
@@ -514,16 +595,16 @@ static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
                 input_box_set_text(&input_boxes[INPUT_BOX_NAME], NULL, 0);
             }
         }
-        u64 length = darray_get_size(nodes);
+        u64 length = darray_get_size(gs->nodes);
         for (i32 i = length - 1; i > -1; --i) {
-            if (&nodes[i] == prev_selected) continue;
-            handled = node_update(&nodes[i], mpos, delta, handled);
+            if (&gs->nodes[i] == prev_selected) continue;
+            handled = node_update(&gs->nodes[i], mpos, delta, handled);
             // Make sure only one state is initial state
             if (prev_selected && prev_selected->initial_state)
-                nodes[i].initial_state = false;
+                gs->nodes[i].initial_state = false;
 
-            if (nodes[i].selected) {
-                selected_node = &nodes[i];
+            if (gs->nodes[i].selected) {
+                selected_node = &gs->nodes[i];
                 input_box_set_text(&input_boxes[INPUT_BOX_NAME],
                                    selected_node->name,
                                    selected_node->name_length);
@@ -546,12 +627,12 @@ static i32 editor_update_nodes_and_tlines(Vector2 mpos, Vector2 delta,
         }
     }
 
-    u64 length = darray_get_size(tlines);
+    u64 length = darray_get_size(gs->tlines);
     for (i32 i = length - 1; i > -1; --i) {
-        if (&tlines[i] == selected_tline) continue;
-        handled = tline_update(&tlines[i], mpos, handled);
-        if (tlines[i].selected) {
-            selected_tline = &tlines[i];
+        if (&gs->tlines[i] == selected_tline) continue;
+        handled = tline_update(&gs->tlines[i], mpos, handled);
+        if (gs->tlines[i].selected) {
+            selected_tline = &gs->tlines[i];
             u32 len;
             const char *inputs = tline_get_inputs(selected_tline, &len);
             input_box_set_text(&tr_input, inputs, len);
@@ -586,7 +667,17 @@ static void on_change_mode_button_clicked(GlobalState *gs) {
 }
 
 static void on_simulate_button_clicked(GlobalState *gs) {
-    UNUSED(gs);
+    u32 len;
+    const char *alphabet =
+        input_box_get_text(&input_boxes[INPUT_BOX_ALPHABET], &len);
+    if (!len) alphabet = NULL;
+    if (gs->fsm_type == FSM_TYPE_DFA) {
+        dfa_state = is_dfa_valid(gs->nodes, gs->tlines, alphabet);
+    } else if (gs->fsm_type == FSM_TYPE_NFA) {
+        nfa_state = is_nfa_valid(gs->nodes, gs->tlines, alphabet);
+    }
+    // TODO:
+    show_fsm_status = true;
 }
 
 static void on_save_button_clicked(GlobalState *gs) {
@@ -596,6 +687,18 @@ static void on_save_button_clicked(GlobalState *gs) {
 static void on_transition_add_button_clicked(GlobalState *gs) {
     u32 len;
     const char *inputs = input_box_get_text(&tr_input, &len);
+    u64 tlines_length = darray_get_size(gs->tlines);
+    for (u64 i = 0; i < tlines_length; ++i) {
+        if ((gs->tlines[i].start == node_selectors[NODE_SELECTOR_FROM].node)
+            && (gs->tlines[i].end == node_selectors[NODE_SELECTOR_TO].node)) {
+            tline_append_inputs(&gs->tlines[i], inputs, len);
+            for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
+                node_selectors[i].node = NULL;
+            input_box_set_text(&tr_input, NULL, 0);
+            return;
+        }
+    }
+
     if (!selected_tline) {
         TLine tline;
         tline_create(&tline);
@@ -605,7 +708,7 @@ static void on_transition_add_button_clicked(GlobalState *gs) {
         tline_set_inputs(&tline, inputs, len);
         tline_set_font(&tline, gs->font);
 
-        darray_push(&tlines, tline);
+        darray_push(&gs->tlines, tline);
     } else {
         tline_set_start_node(selected_tline,
                              node_selectors[NODE_SELECTOR_FROM].node);

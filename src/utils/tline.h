@@ -38,4 +38,4 @@ i32 tline_update(TLine *tl, Vector2 mpos, i32 handled);
 
 void tline_draw(TLine *tl);
 
-void tline_append_input(TLine *tl, const char *input, u32 len);
+void tline_append_inputs(TLine *tl, const char *input, u32 len);

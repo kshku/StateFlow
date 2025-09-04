@@ -132,6 +132,7 @@ static void take_input_text(InputBox *ib) {
 
 const char *input_box_get_text(InputBox *ib, u32 *len) {
     if (len) *len = ib->index;
+    ib->text[ib->index] = 0;
     return ib->text;
 }
 

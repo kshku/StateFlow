@@ -9,6 +9,7 @@ static Button button;
 static RenderTexture2D target;
 static Rectangle source, dest;
 static float scale;
+static bool change_screen = false;
 
 enum { BUTTON_DFA = 0, BUTTON_NFA, BUTTON_LOAD, BUTTON_MAX };
 
@@ -43,9 +44,9 @@ void menu_load(GlobalState *gs) {
             char *name;
             u32 len;
     } button_texts[BUTTON_MAX] = {
-        {    "Create new DFA", 14},
-        {    "Create new NFA", 14},
-        {"Load State Machine", 18}
+        {"Create new DFA", 14},
+        {"Create new NFA", 14},
+        {      "Load FSM",  8}
     };
 
     ButtonColors colors = {.text = GREEN,
@@ -81,15 +82,10 @@ ScreenChangeType menu_update(GlobalState *gs) {
     for (i32 i = 0; i < BUTTON_MAX; ++i)
         handled = button_update(&buttons[i], mpos, handled);
 
-    for (i32 i = 0; i < BUTTON_MAX; ++i) {
-        if (buttons[i].clicked) {
-            on_button_clicked[i](gs);
-            // Just making things work temporarily
-            if (i == 0) return SCREEN_CHANGE;
-            break;
-        }
-    }
+    for (i32 i = 0; i < BUTTON_MAX; ++i)
+        if (buttons[i].clicked) on_button_clicked[i](gs);
 
+    if (change_screen) return SCREEN_CHANGE;
     return SCREEN_SAME;
 }
 
@@ -134,17 +130,20 @@ static Vector2 menu_get_transformed_mouse_position(void) {
 
 static void on_dfa_button_clicked(GlobalState *gs) {
     gs->next_screen = &editor;
-    // gs->next_screen = &splash_screen;
+    gs->fsm_type = FSM_TYPE_DFA;
+    change_screen = true;
 }
 
 static void on_nfa_button_clicked(GlobalState *gs) {
-    button_disable(&buttons[BUTTON_DFA]);
-    // gs->next_screen = &splash_screen;
+    // button_disable(&buttons[BUTTON_DFA]);
+    gs->next_screen = &editor;
+    gs->fsm_type = FSM_TYPE_NFA;
+    change_screen = true;
 }
 
 static void on_load_button_clicked(GlobalState *gs) {
-    button_enable(&buttons[BUTTON_DFA]);
-    // gs->next_screen = &splash_screen;
+    // button_enable(&buttons[BUTTON_DFA]);
+    gs->next_screen = &splash_screen;
 }
 
 Screen menu = (Screen){.load = menu_load,

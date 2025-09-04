@@ -2,6 +2,8 @@
 
 #include <raymath.h>
 
+#include "utils/darray.h"
+
 typedef struct State {
         Screen *current_screen;
 } State;
@@ -21,6 +23,9 @@ void stateflow_initialize(void) {
     gs.font =
         // LoadFont("assets/JetBrainsMonoNerdFont-Medium.ttf");
         LoadFontEx("assets/FiraCodeNerdFontMono-Bold.ttf", 144, NULL, 0);
+    gs.fsm_type = FSM_TYPE_MAX;
+    gs.nodes = darray_create(Node);
+    gs.tlines = darray_create(TLine);
 
     state.current_screen = &splash_screen;
     state.current_screen->load(&gs);
@@ -28,6 +33,9 @@ void stateflow_initialize(void) {
 
 void stateflow_shutdown(void) {
     state.current_screen->unload(&gs);
+
+    darray_destroy(gs.nodes);
+    darray_destroy(gs.tlines);
 
     UnloadFont(gs.font);
 
