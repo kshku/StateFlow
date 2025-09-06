@@ -1,6 +1,7 @@
 #include "stateflow.h"
 
 #include <raymath.h>
+#include <stdlib.h>
 
 #include "utils/darray.h"
 
@@ -26,8 +27,49 @@ void stateflow_initialize(void) {
     gs.fsm_type = FSM_TYPE_MAX;
     gs.nodes = darray_create(Node);
     gs.tlines = darray_create(TLine);
+    gs.alphabet = NULL;
+    gs.alphabet_len = 0;
 
     state.current_screen = &splash_screen;
+
+    // ##########################################
+    // For the development phase
+    gs.alphabet = malloc(2 * sizeof(char));
+    gs.alphabet[0] = 'a';
+    gs.alphabet[1] = 0;
+    gs.alphabet_len = 1;
+    NodeColors node_colors = {.text = GREEN,
+                              .normal = BLUE,
+                              .hovered = DARKBLUE,
+                              .down = VIOLET,
+                              .highlighted = YELLOW};
+    TLineColors tline_colors = {.text = GREEN,
+                                .normal = GREEN,
+                                .down = BLACK,
+                                .hovered = DARKBLUE,
+                                .highlighted = YELLOW};
+    gs.fsm_type = FSM_TYPE_DFA;
+    Node node;
+    node_create(&node, (Vector2){500, 500});
+    node_set_colors(&node, node_colors);
+    node_set_font(&node, gs.font, 32);
+    node_set_name(&node, "a", 1);
+    node.initial_state = true;
+    node.accepting_state = true;
+    darray_push(&gs.nodes, node);
+
+    TLine tline;
+    tline_create(&tline);
+    tline_set_colors(&tline, tline_colors);
+    tline_set_start_node(&tline, &gs.nodes[0]);
+    tline_set_end_node(&tline, &gs.nodes[0]);
+    tline_set_inputs(&tline, "a", 1);
+    tline_set_font(&tline, gs.font);
+    darray_push(&gs.tlines, tline);
+
+    state.current_screen = &animation;
+    // ##################################################
+
     state.current_screen->load(&gs);
 }
 
@@ -36,6 +78,7 @@ void stateflow_shutdown(void) {
 
     darray_destroy(gs.nodes);
     darray_destroy(gs.tlines);
+    free(gs.alphabet);
 
     UnloadFont(gs.font);
 

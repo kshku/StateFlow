@@ -1,8 +1,12 @@
 #include <raymath.h>
+#include <stdlib.h>
 
 #include "stateflow.h"
 #include "utils/button.h"
+#include "utils/darray.h"
+#include "utils/node.h"
 #include "utils/text.h"
+#include "utils/tline.h"
 
 static TextBox test;
 static Button button;
@@ -29,6 +33,7 @@ static void menu_update_transforms(void);
 static Vector2 menu_get_transformed_mouse_position(void);
 
 void menu_load(GlobalState *gs) {
+    change_screen = false;
     target = LoadRenderTexture(1600, 1600);
     float x = 250;
     float width = 300;
@@ -65,6 +70,16 @@ void menu_load(GlobalState *gs) {
     }
 
     menu_update_transforms();
+
+    u64 length = darray_get_size(gs->nodes);
+    for (u64 i = 0; i < length; ++i) node_destroy(&gs->nodes[i]);
+    darray_clear(gs->nodes);
+    length = darray_get_size(gs->tlines);
+    for (u64 i = 0; i < length; ++i) tline_destroy(&gs->tlines[i]);
+    darray_clear(gs->tlines);
+
+    free(gs->alphabet);
+    gs->alphabet_len = 0;
 }
 
 void menu_unload(GlobalState *gs) {

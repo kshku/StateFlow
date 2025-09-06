@@ -15,8 +15,9 @@ static bool path_exists_to_accepting_state(Node **visited, TLine *tlines,
     darray_push(&visited, current_state);
 
     for (u64 i = 0; alphabet[i]; ++i) {
-        Node **states =
-            nfa_transition(current_state, tlines, tlines_length, alphabet[i]);
+        Node **states = darray_create(Node *);
+        states = nfa_transition(current_state, states, tlines, tlines_length,
+                                alphabet[i]);
         u64 length = darray_get_size(states);
         for (u64 i = 0; i < length; ++i) {
             if (path_exists_to_accepting_state(visited, tlines, tlines_length,
@@ -64,10 +65,9 @@ NfaState is_nfa_valid(Node *nodes, TLine *tlines, const char *alphabet) {
     return NFA_STATE_OK;
 }
 
-Node **nfa_transition(Node *current_state, TLine *tlines, u64 tlines_length,
-                      char input) {
+Node **nfa_transition(Node *current_state, Node **states /*returned*/,
+                      TLine *tlines, u64 tlines_length, char input) {
     char input_str[2] = {input, 0};
-    Node **states = darray_create(Node *);
     for (u64 i = 0; i < tlines_length; ++i) {
         if (tlines[i].start == current_state
             && all_chars_present(tlines[i].inputs, input_str)) {

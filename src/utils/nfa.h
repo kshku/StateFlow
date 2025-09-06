@@ -13,7 +13,7 @@ typedef enum NfaState {
     NFA_STATE_ACCEPTING_STATE_NOT_REACHABLE,
 } NfaState;
 
-Node **nfa_transition(Node *current_state, TLine *tlines, u64 tlines_length,
-                      char input);
+Node **nfa_transition(Node *current_state, Node **states /* returned */,
+                      TLine *tlines, u64 tlines_length, char input);
 
 NfaState is_nfa_valid(Node *nodes, TLine *tlines, const char *alphabet);

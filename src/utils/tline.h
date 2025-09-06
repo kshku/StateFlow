@@ -5,8 +5,24 @@
 #include "defines.h"
 #include "node.h"
 
+typedef enum TLineState {
+    TLINE_STATE_NORMAL,
+    TLINE_STATE_DOWN,
+    TLINE_STATE_HOVERED,
+    TLINE_STATE_HIGHLIGHTED,
+} TLineState;
+
+typedef struct TLineColors {
+        Color normal;
+        Color text;
+        Color down;
+        Color hovered;
+        Color highlighted;
+} TLineColors;
+
 typedef struct TLine {
-        Color color;
+        TLineColors colors;
+        TLineState state;
         // Bezier curve
         Vector2 points[4];
         Node *start;
@@ -15,6 +31,7 @@ typedef struct TLine {
         char *inputs;
         u32 len;
         bool pressed;
+        bool editing;
         bool selected;
 } TLine;
 
@@ -28,7 +45,7 @@ void tline_set_end_node(TLine *tl, Node *n);
 
 void tline_set_inputs(TLine *tl, const char *inputs, u32 len);
 
-void tline_set_colors(TLine *tl, Color color);
+void tline_set_colors(TLine *tl, TLineColors colors);
 
 void tline_set_font(TLine *tl, Font font);
 

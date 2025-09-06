@@ -20,6 +20,8 @@ typedef struct GlobalState {
         Node *nodes;  // Darray
         TLine *tlines;  // Darray
         FSMType fsm_type;
+        char *alphabet;
+        u64 alphabet_len;
         // i32 virtual_width;
         // i32 virtual_height;
         // Camera2D camera;
@@ -36,3 +38,4 @@ struct Screen {
 extern Screen splash_screen;
 extern Screen menu;
 extern Screen editor;
+extern Screen animation;

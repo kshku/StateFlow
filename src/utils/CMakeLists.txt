@@ -21,6 +21,8 @@ set(SRCS
     dfa.c
     strops.h
     strops.c
+    funcs.h
+    funcs.c
 )
 
 target_sources(${APP_NAME} PRIVATE ${SRCS})

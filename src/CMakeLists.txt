@@ -4,6 +4,7 @@ set(SRCS
     splash_screen.c
     editor.c
     menu.c
+    animation.c
 )
 
 target_compile_definitions(${APP_NAME} PRIVATE

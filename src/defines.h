@@ -28,6 +28,8 @@ typedef enum Input {
     INPUT_MIDDLE_BUTTON = 1 << 3,
     INPUT_MOUSE_POSITION = 1 << 4,
     INPUT_MOUSE_WHEEL = 1 << 5,
+    INPUT_ALL = INPUT_KEYSTROKES | INPUT_LEFT_BUTTON | INPUT_RIGHT_BUTTON
+              | INPUT_MIDDLE_BUTTON | INPUT_MOUSE_POSITION | INPUT_MOUSE_WHEEL,
 } Input;
 
 #define IS_INPUT_HANDLED(handled, input) ((handled) & (input))

@@ -229,6 +229,9 @@ static i32 node_update_editing(Node *n, Vector2 mpos, Vector2 delta,
 }
 
 static i32 node_update_animating(Node *n, i32 handled) {
+    n->state = NODE_STATE_NORMAL;
+
+    return handled;
 }
 
 // void node_lock_state(Node *n, NodeState state) {

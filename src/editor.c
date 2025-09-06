@@ -1,11 +1,13 @@
 #include <raylib.h>
 #include <raymath.h>
+#include <stdlib.h>
 
 #include "stateflow.h"
 #include "utils/button.h"
 #include "utils/checkbox.h"
 #include "utils/darray.h"
 #include "utils/dfa.h"
+#include "utils/funcs.h"
 #include "utils/input.h"
 #include "utils/nfa.h"
 #include "utils/node.h"
@@ -75,14 +77,17 @@ static NodeColors node_colors = {.text = GREEN,
                                  .hovered = DARKBLUE,
                                  .down = VIOLET,
                                  .highlighted = YELLOW};
+static TLineColors tline_colors = {.text = GREEN,
+                                   .normal = GREEN,
+                                   .down = BLACK,
+                                   .hovered = DARKBLUE,
+                                   .highlighted = YELLOW};
 
 enum { TRT_FROM, TRT_INPUTS, TRT_TO, TRT_MAX };
 
 static TextBox tr_texts[TRT_MAX];
 static InputBox tr_input;
 static Button tr_button;
-
-static void editor_draw_grid(float thick, float spacing, Color color);
 
 static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled);
 
@@ -97,6 +102,7 @@ static i32 editor_update_nodes_and_tlines(GlobalState *gs, Vector2 mpos,
 static void on_transition_add_button_clicked(GlobalState *gs);
 
 void editor_load(GlobalState *gs) {
+    change_screen = false;
     camera = (Camera2D){
         .target = (Vector2){.x = 0, .y = 0},
         .offset = (Vector2){.x = 0, .y = 0},
@@ -105,6 +111,11 @@ void editor_load(GlobalState *gs) {
     };
     selected_node = NULL;
     selected_tline = NULL;
+
+    u64 length = darray_get_size(gs->nodes);
+    for (u64 i = 0; i < length; ++i) gs->nodes[i].editing = true;
+    length = darray_get_size(gs->tlines);
+    for (u64 i = 0; i < length; ++i) gs->tlines[i].editing = true;
 
     target = LoadRenderTexture(1600, 160);
 
@@ -143,6 +154,9 @@ void editor_load(GlobalState *gs) {
                              (InputBoxColors){.box = BLACK, .text = WHITE});
         input_box_set_font(&input_boxes[i], gs->font);
     }
+
+    input_box_set_text(&input_boxes[INPUT_BOX_ALPHABET], gs->alphabet,
+                       gs->alphabet_len);
 
     Rectangle check_box_rects[CHECK_BOX_MAX] = {
         { 870, 90, 50, 48},
@@ -323,10 +337,11 @@ void editor_draw(GlobalState *gs) {
     ClearBackground(bg);
     BeginMode2D(camera);
 
-    editor_draw_grid(1.0f, 100.0f, GRAY);
+    draw_grid(camera, 1.0f, 100.0f, GRAY);
 
-    DrawText(gs->fsm_type == FSM_TYPE_DFA ? "DFA EDITOR!" : "NFA EDITOR", 5000,
-             200, 32, WHITE);
+    // DrawText(gs->fsm_type == FSM_TYPE_DFA ? "DFA EDITOR!" : "NFA EDITOR",
+    // 5000,
+    //          200, 32, WHITE);
 
     u64 length = darray_get_size(gs->tlines);
     for (u32 i = 0; i < length; ++i) tline_draw(&gs->tlines[i]);
@@ -465,31 +480,6 @@ static void editor_update_transforms(void) {
     dest.y = 0;
 }
 
-static void editor_draw_grid(float thick, float spacing, Color color) {
-    i32 width = GetScreenWidth();
-    i32 height = GetScreenHeight();
-
-    thick /= camera.zoom;
-
-    // Get the world position
-    Vector2 top_left = GetScreenToWorld2D((Vector2){0, 0}, camera);
-    Vector2 bottom_right = GetScreenToWorld2D((Vector2){width, height}, camera);
-
-    // align
-    float start_x = floorf(top_left.x / spacing) * spacing;
-    float end_x = floorf(bottom_right.x / spacing) * spacing;
-    float start_y = floorf(top_left.y / spacing) * spacing;
-    float end_y = floorf(bottom_right.y / spacing) * spacing;
-
-    for (float x = start_x; x <= end_x; x += spacing)
-        DrawLineEx((Vector2){x, top_left.y}, (Vector2){x, bottom_right.y},
-                   thick, color);
-
-    for (float y = start_y; y <= end_y; y += spacing)
-        DrawLineEx((Vector2){top_left.x, y}, (Vector2){bottom_right.x, y},
-                   thick, color);
-}
-
 static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
     if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)
         && !IS_INPUT_HANDLED(handled, INPUT_RIGHT_BUTTON)
@@ -499,6 +489,7 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
         node_create(&node, mpos);
         node_set_colors(&node, node_colors);
         node_set_font(&node, gs->font, 32);
+        node.editing = true;
         darray_push(&gs->nodes, node);
     }
 
@@ -671,13 +662,32 @@ static void on_simulate_button_clicked(GlobalState *gs) {
     const char *alphabet =
         input_box_get_text(&input_boxes[INPUT_BOX_ALPHABET], &len);
     if (!len) alphabet = NULL;
-    if (gs->fsm_type == FSM_TYPE_DFA) {
-        dfa_state = is_dfa_valid(gs->nodes, gs->tlines, alphabet);
-    } else if (gs->fsm_type == FSM_TYPE_NFA) {
-        nfa_state = is_nfa_valid(gs->nodes, gs->tlines, alphabet);
+
+    if (alphabet) {
+        char *new_alphabet = realloc(gs->alphabet, (len + 1) * sizeof(char));
+        if (!new_alphabet) return;
+        gs->alphabet = new_alphabet;
+        for (u64 i = 0; i < len; ++i) gs->alphabet[i] = alphabet[i];
+        gs->alphabet_len = len;
     }
-    // TODO:
-    show_fsm_status = true;
+
+    if (gs->fsm_type == FSM_TYPE_DFA) {
+        dfa_state = is_dfa_valid(gs->nodes, gs->tlines, gs->alphabet);
+        if (dfa_state != DFA_STATE_OK) {
+            show_fsm_status = true;
+            return;
+        }
+
+    } else if (gs->fsm_type == FSM_TYPE_NFA) {
+        nfa_state = is_nfa_valid(gs->nodes, gs->tlines, gs->alphabet);
+        if (nfa_state != NFA_STATE_OK) {
+            show_fsm_status = true;
+            return;
+        }
+    }
+
+    change_screen = true;
+    gs->next_screen = &animation;
 }
 
 static void on_save_button_clicked(GlobalState *gs) {
@@ -702,11 +712,12 @@ static void on_transition_add_button_clicked(GlobalState *gs) {
     if (!selected_tline) {
         TLine tline;
         tline_create(&tline);
-        tline_set_colors(&tline, GREEN);
+        tline_set_colors(&tline, tline_colors);
         tline_set_start_node(&tline, node_selectors[NODE_SELECTOR_FROM].node);
         tline_set_end_node(&tline, node_selectors[NODE_SELECTOR_TO].node);
         tline_set_inputs(&tline, inputs, len);
         tline_set_font(&tline, gs->font);
+        tline.editing = true;
 
         darray_push(&gs->tlines, tline);
     } else {
