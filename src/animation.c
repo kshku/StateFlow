@@ -4,21 +4,50 @@
 #include "stateflow.h"
 #include "utils/button.h"
 #include "utils/darray.h"
+#include "utils/dfa.h"
 #include "utils/funcs.h"
 #include "utils/input.h"
+#include "utils/nfa.h"
+#include "utils/strops.h"
 #include "utils/text.h"
+
+typedef enum AnimatingState {
+    ANIMATING_STATE_NODE,
+    ANIMATING_STATE_INPUT,
+    ANIMATING_STATE_TLINE,
+    ANIMATING_STATE_RESULT,
+} AnimatingState;
 
 static Camera2D camera;
 static RenderTexture2D target;
 static float scale;
 static Rectangle source, dest;
+static Node *initial_state = NULL;
+static Node **current_states = NULL;
+static bool invalid_input = false;
+static AnimatingState animating_state;
 
 static InputBox input;
-static TextBox input_tb;
 static bool change_screen = false;
 static bool animating = false;
 static bool paused = false;
 static u64 frame_count;
+
+enum Result {
+    RESULT_NONE = 0,
+    RESULT_ACCEPTED,
+    RESULT_REJECTED,
+} result = RESULT_NONE;
+
+static Vector2 previous_input_vec, current_input_vec, next_input_vec;
+
+static const char *input_text = NULL;
+static u32 input_text_length = 0;
+static u32 input_text_index = 0;
+
+enum { TEXT_BOX_INPUT, TEXT_BOX_MAX };
+
+TextBox text_boxes[TEXT_BOX_MAX];
 
 enum {
     BUTTON_BACK_TO_EDITOR = 0,
@@ -53,26 +82,49 @@ static void animation_animate(GlobalState *gs);
 
 void animation_load(GlobalState *gs) {
     change_screen = false;
+    initial_state = NULL;
+    animating_state = ANIMATING_STATE_TLINE;
     animating = false;
     paused = false;
     frame_count = 0;
+    input_text_index = 0;
+    invalid_input = false;
+    result = RESULT_NONE;
     camera = (Camera2D){.target = (Vector2){0},
                         .offset = (Vector2){0},
                         .rotation = 0.0f,
                         .zoom = 1.0f};
 
     u64 length = darray_get_size(gs->nodes);
-    for (u64 i = 0; i < length; ++i) gs->nodes[i].editing = false;
+    for (u64 i = 0; i < length; ++i) {
+        gs->nodes[i].editing = false;
+        if (gs->nodes[i].initial_state) initial_state = &gs->nodes[i];
+    }
     length = darray_get_size(gs->tlines);
     for (u64 i = 0; i < length; ++i) gs->tlines[i].editing = false;
 
     target = LoadRenderTexture(1600, 160);
 
+    current_states = darray_create(Node *);
+    darray_push(&current_states, initial_state);
+
     InputBoxColors ib_colors = {.box = BLACK, .text = WHITE};
 
-    text_box_create(&input_tb, (Rectangle){10, 10, 200, 48});
-    text_box_set_color(&input_tb, WHITE);
-    text_box_set_text_and_font(&input_tb, "Input", 5, gs->font);
+    struct {
+            Rectangle rect;
+            const char *text;
+            u32 len;
+            Color color;
+    } text_box_params[TEXT_BOX_MAX] = {
+        {{10, 10, 200, 48}, "Input", 5, WHITE},
+    };
+
+    for (u32 i = 0; i < TEXT_BOX_MAX; ++i) {
+        text_box_create(&text_boxes[i], text_box_params[i].rect);
+        text_box_set_color(&text_boxes[i], text_box_params[i].color);
+        text_box_set_text_and_font(&text_boxes[i], text_box_params[i].text,
+                                   text_box_params[i].len, gs->font);
+    }
 
     input_box_create(&input, (Rectangle){210, 10, 900, 48}, 256);
     input_box_set_font(&input, gs->font);
@@ -109,8 +161,10 @@ void animation_unload(GlobalState *gs) {
     UnloadRenderTexture(target);
 
     input_box_destroy(&input);
-    text_box_destroy(&input_tb);
+    for (u32 i = 0; i < TEXT_BOX_MAX; ++i) text_box_destroy(&text_boxes[i]);
     for (u32 i = 0; i < BUTTON_MAX; ++i) button_destroy(&buttons[i]);
+
+    darray_destroy(current_states);
 }
 
 ScreenChangeType animation_update(GlobalState *gs) {
@@ -159,13 +213,44 @@ void animation_draw(GlobalState *gs) {
     EndMode2D();
 
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
+
+    if (animating) {
+        DrawTextEx(gs->font, TextSubtext(input_text, 0, input_text_index),
+                   previous_input_vec, 48, 1.0f, WHITE);
+
+        DrawTextEx(gs->font, TextSubtext(input_text, input_text_index, 1),
+                   current_input_vec, 72, 1.0f, WHITE);
+
+        DrawTextEx(gs->font,
+                   TextSubtext(input_text, input_text_index + 1,
+                               input_text_length - input_text_index - 1),
+                   next_input_vec, 48, 1.0f, WHITE);
+    }
+    if (invalid_input) {
+        DrawTextEx(gs->font, "Invalid input!",
+                   (Vector2){10, GetScreenHeight() - 25}, 24, 1.0f, RED);
+    }
+
+    switch (result) {
+        case RESULT_ACCEPTED:
+            DrawTextEx(gs->font, "Accepted",
+                       (Vector2){0, GetScreenHeight() - 48}, 48, 1.0f, GREEN);
+            break;
+        case RESULT_REJECTED:
+            DrawTextEx(gs->font, "Rejected",
+                       (Vector2){0, GetScreenHeight() - 48}, 48, 1.0f, GREEN);
+            break;
+        case RESULT_NONE:
+        default:
+            break;
+    }
 }
 
 void animation_before_draw(GlobalState *gs) {
     BeginTextureMode(target);
     ClearBackground(GRAY);
 
-    text_box_draw(&input_tb);
+    for (u32 i = 0; i < TEXT_BOX_MAX; ++i) text_box_draw(&text_boxes[i]);
     input_box_draw(&input);
     for (u32 i = 0; i < BUTTON_MAX; ++i) button_draw(&buttons[i]);
 
@@ -255,12 +340,28 @@ static void animation_update_nodes_and_tlines(GlobalState *gs) {
 }
 
 static void on_toggle_animation_button_clicked(GlobalState *gs) {
+    invalid_input = false;
     if (animating) {
         button_set_text_and_font(&buttons[BUTTON_TOGGLE_ANIMATION],
                                  "Start animation", 15, gs->font);
         animating = false;
         button_disable(&buttons[BUTTON_PAUSE]);
+        result = RESULT_NONE;
+        animating_state = ANIMATING_STATE_TLINE;
     } else {
+        input_text_index = 0;
+        result = RESULT_NONE;
+        animating_state = ANIMATING_STATE_TLINE;
+        input_text = input_box_get_text(&input, &input_text_length);
+        darray_clear(current_states);
+        darray_push(&current_states, initial_state);
+
+        if (!input_text_length || !input_text
+            || !all_chars_present(gs->alphabet, input_text)) {
+            invalid_input = true;
+            return;
+        }
+
         button_set_text_and_font(&buttons[BUTTON_TOGGLE_ANIMATION],
                                  "Stop animation", 14, gs->font);
         animating = true;
@@ -286,9 +387,90 @@ static void on_puase_button_clicked(GlobalState *gs) {
 }
 
 static void animation_animate(GlobalState *gs) {
-    if (gs->fsm_type == FSM_TYPE_DFA) {
-    } else if (gs->fsm_type == FSM_TYPE_NFA) {
+    u64 tlines_length = darray_get_size(gs->tlines);
+    u64 current_states_length = darray_get_size(current_states);
+
+    if ((frame_count % 30) == 0) {
+        switch (animating_state) {
+            case ANIMATING_STATE_NODE: {
+                if (input_text_index >= input_text_length) break;
+                animating_state = ANIMATING_STATE_INPUT;
+                if (gs->fsm_type == FSM_TYPE_DFA) {
+                    Node *next_state = dfa_transition(
+                        current_states[0], gs->tlines, tlines_length,
+                        input_text[input_text_index]);
+                    darray_pop(&current_states, NULL);
+                    darray_push(&current_states, next_state);
+                } else if (gs->fsm_type == FSM_TYPE_NFA) {
+                    Node **next_states = darray_create(Node *);
+                    u64 current_states_length = darray_get_size(current_states);
+                    for (u64 i = 0; i < current_states_length; ++i)
+                        next_states = nfa_transition(
+                            current_states[i], next_states, gs->tlines,
+                            tlines_length, input_text[input_text_index]);
+                    darray_clear(&current_states);
+                    u64 length = darray_get_size(next_states);
+                    darray_resize(&current_states, length);
+                    memcpy(current_states, next_states,
+                           length * sizeof(Node *));
+                    darray_destroy(next_states);
+                }
+            } break;
+            case ANIMATING_STATE_INPUT: {
+                ++input_text_index;
+                animating_state = ANIMATING_STATE_TLINE;
+                if (input_text_index >= input_text_length)
+                    animating_state = ANIMATING_STATE_RESULT;
+            } break;
+            case ANIMATING_STATE_TLINE: {
+                animating_state = ANIMATING_STATE_NODE;
+            } break;
+            case ANIMATING_STATE_RESULT: {
+                u64 length = darray_get_size(current_states);
+                result = RESULT_REJECTED;
+                for (u64 i = 0; i < length; ++i) {
+                    if (current_states[i]->accepting_state)
+                        result = RESULT_ACCEPTED;
+                }
+            } break;
+            default:
+                break;
+        }
     }
+
+    // if (animating_state == ANIMATING_STATE_INPUT) {
+    for (u64 i = 0; i < tlines_length; ++i) {
+        for (u64 j = 0; j < current_states_length; ++j) {
+            if (gs->tlines[i].start == current_states[j]) {
+                gs->tlines[i].state = TLINE_STATE_HIGHLIGHTED;
+                break;
+            }
+        }
+    }
+    // }
+
+    for (u64 i = 0; i < current_states_length; ++i)
+        current_states[i]->state = NODE_STATE_HIGHLIGHTED;
+
+    int width = GetScreenWidth();
+    int height = GetScreenHeight();
+    Vector2 prev_size = MeasureTextEx(
+        gs->font, TextSubtext(input_text, 0, input_text_index), 48, 1.0f);
+    Vector2 cur_size = MeasureTextEx(
+        gs->font, TextSubtext(input_text, input_text_index, 1), 72, 1.0f);
+    Vector2 next_size =
+        MeasureTextEx(gs->font,
+                      TextSubtext(input_text, input_text_index + 1,
+                                  (input_text_length - input_text_index - 1)),
+                      48, 1.0f);
+
+    previous_input_vec =
+        (Vector2){.x = ((width - prev_size.x - cur_size.x) / 2.0f),
+                  .y = height - prev_size.y};
+    current_input_vec = (Vector2){.x = previous_input_vec.x + prev_size.x,
+                                  .y = height - cur_size.y};
+    next_input_vec = (Vector2){.x = current_input_vec.x + cur_size.x,
+                               .y = height - next_size.y};
 }
 
 Screen animation = {.load = animation_load,

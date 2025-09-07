@@ -50,7 +50,7 @@ void stateflow_initialize(void) {
                                 .highlighted = YELLOW};
     gs.fsm_type = FSM_TYPE_DFA;
     Node node;
-    node_create(&node, (Vector2){500, 500});
+    node_create(&node, (Vector2){500, 300});
     node_set_colors(&node, node_colors);
     node_set_font(&node, gs.font, 32);
     node_set_name(&node, "a", 1);
@@ -58,10 +58,26 @@ void stateflow_initialize(void) {
     node.accepting_state = true;
     darray_push(&gs.nodes, node);
 
+    node_create(&node, (Vector2){700, 500});
+    node_set_colors(&node, node_colors);
+    node_set_font(&node, gs.font, 32);
+    node_set_name(&node, "a", 1);
+    node.initial_state = false;
+    node.accepting_state = false;
+    darray_push(&gs.nodes, node);
+
     TLine tline;
     tline_create(&tline);
     tline_set_colors(&tline, tline_colors);
     tline_set_start_node(&tline, &gs.nodes[0]);
+    tline_set_end_node(&tline, &gs.nodes[1]);
+    tline_set_inputs(&tline, "a", 1);
+    tline_set_font(&tline, gs.font);
+    darray_push(&gs.tlines, tline);
+
+    tline_create(&tline);
+    tline_set_colors(&tline, tline_colors);
+    tline_set_start_node(&tline, &gs.nodes[1]);
     tline_set_end_node(&tline, &gs.nodes[0]);
     tline_set_inputs(&tline, "a", 1);
     tline_set_font(&tline, gs.font);
