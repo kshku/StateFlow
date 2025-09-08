@@ -238,7 +238,7 @@ void animation_draw(GlobalState *gs) {
             break;
         case RESULT_REJECTED:
             DrawTextEx(gs->font, "Rejected",
-                       (Vector2){0, GetScreenHeight() - 48}, 48, 1.0f, GREEN);
+                       (Vector2){0, GetScreenHeight() - 48}, 48, 1.0f, RED);
             break;
         case RESULT_NONE:
         default:
@@ -282,6 +282,10 @@ static i32 animation_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
             if (IsKeyDown(navigation_keys[i][1])) camera.target.x += 10;
             if (IsKeyDown(navigation_keys[i][2])) camera.target.y -= 10;
             if (IsKeyDown(navigation_keys[i][3])) camera.target.y += 10;
+
+            if (IsKeyDown(KEY_BACKSPACE)) on_back_to_editor_button_clicked(gs);
+
+            MARK_INPUT_HANDLED(handled, INPUT_KEYSTROKES);
         }
 
         bool panning = false;
@@ -352,12 +356,11 @@ static void on_toggle_animation_button_clicked(GlobalState *gs) {
         input_text_index = 0;
         result = RESULT_NONE;
         animating_state = ANIMATING_STATE_TLINE;
-        input_text = input_box_get_text(&input, &input_text_length);
         darray_clear(current_states);
         darray_push(&current_states, initial_state);
 
-        if (!input_text_length || !input_text
-            || !all_chars_present(gs->alphabet, input_text)) {
+        input_text = input_box_get_text(&input, &input_text_length);
+        if (!all_chars_present(gs->alphabet, input_text)) {
             invalid_input = true;
             return;
         }
@@ -393,7 +396,10 @@ static void animation_animate(GlobalState *gs) {
     if ((frame_count % 30) == 0) {
         switch (animating_state) {
             case ANIMATING_STATE_NODE: {
-                if (input_text_index >= input_text_length) break;
+                if (input_text_index >= input_text_length) {
+                    animating_state = ANIMATING_STATE_RESULT;
+                    break;
+                }
                 animating_state = ANIMATING_STATE_INPUT;
                 if (gs->fsm_type == FSM_TYPE_DFA) {
                     Node *next_state = dfa_transition(
@@ -403,16 +409,14 @@ static void animation_animate(GlobalState *gs) {
                     darray_push(&current_states, next_state);
                 } else if (gs->fsm_type == FSM_TYPE_NFA) {
                     Node **next_states = darray_create(Node *);
-                    u64 current_states_length = darray_get_size(current_states);
                     for (u64 i = 0; i < current_states_length; ++i)
                         next_states = nfa_transition(
                             current_states[i], next_states, gs->tlines,
                             tlines_length, input_text[input_text_index]);
                     darray_clear(&current_states);
                     u64 length = darray_get_size(next_states);
-                    darray_resize(&current_states, length);
-                    memcpy(current_states, next_states,
-                           length * sizeof(Node *));
+                    for (u64 i = 0; i < length; ++i)
+                        darray_push(&current_states, next_states[i]);
                     darray_destroy(next_states);
                 }
             } break;
@@ -439,16 +443,29 @@ static void animation_animate(GlobalState *gs) {
     }
 
     // if (animating_state == ANIMATING_STATE_INPUT) {
-    for (u64 i = 0; i < tlines_length; ++i) {
-        for (u64 j = 0; j < current_states_length; ++j) {
-            if (gs->tlines[i].start == current_states[j]) {
-                gs->tlines[i].state = TLINE_STATE_HIGHLIGHTED;
-                break;
+    if (input_text) {
+        for (u64 i = 0; i < tlines_length; ++i) {
+            for (u64 j = 0; j < current_states_length; ++j) {
+                if (gs->tlines[i].start == current_states[j]) {
+                    bool found = false;
+                    for (u32 k = 0; k < gs->tlines[i].len; ++k) {
+                        if (gs->tlines[i].inputs[k]
+                            == input_text[input_text_index]) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        gs->tlines[i].state = TLINE_STATE_HIGHLIGHTED;
+                        break;
+                    }
+                }
             }
         }
     }
     // }
 
+    current_states_length = darray_get_size(current_states);
     for (u64 i = 0; i < current_states_length; ++i)
         current_states[i]->state = NODE_STATE_HIGHLIGHTED;
 

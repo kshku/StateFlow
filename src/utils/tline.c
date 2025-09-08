@@ -15,11 +15,11 @@ static i32 tline_update_editing(TLine *tl, Vector2 mpos, i32 handled);
 static i32 tline_update_animating(TLine *tl, i32 handled);
 
 void tline_create(TLine *tl) {
-    tline_set_colors(tl, (TLineColors){.down = WHITE,
-                                       .highlighted = WHITE,
-                                       .hovered = WHITE,
-                                       .normal = WHITE,
-                                       .text = BLACK});
+    tline_set_colors(tl, (TLineColors){.down = BLACK,
+                                       .highlighted = YELLOW,
+                                       .hovered = DARKBLUE,
+                                       .normal = GREEN,
+                                       .text = GREEN});
     tline_set_start_node(tl, NULL);
     tline_set_end_node(tl, NULL);
     tline_set_font(tl, GetFontDefault());
@@ -93,7 +93,7 @@ void tline_draw(TLine *tl) {
     if (tl->start && tl->end) {
         if (tl->start != tl->end) {
             Vector2 center =
-                Vector2Lerp(tl->start->center, tl->end->center, 0.75);
+                Vector2Lerp(tl->start->center, tl->end->center, 0.60);
             Vector2 dir = Vector2Normalize(
                 Vector2Subtract(tl->end->center, tl->start->center));
             Vector2 perp = {-dir.y, dir.x};

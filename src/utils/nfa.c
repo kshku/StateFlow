@@ -71,6 +71,9 @@ Node **nfa_transition(Node *current_state, Node **states /*returned*/,
     for (u64 i = 0; i < tlines_length; ++i) {
         if (tlines[i].start == current_state
             && all_chars_present(tlines[i].inputs, input_str)) {
+            u64 length = darray_get_size(states);
+            for (u64 k = 0; k < length; ++k)
+                if (states[i] == tlines[i].end) continue;
             darray_push(&states, tlines[i].end);
         }
     }

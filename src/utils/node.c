@@ -20,11 +20,11 @@ void node_create(Node *n, Vector2 center) {
     n->name = NULL;
     n->name_length = 0;
     n->state = NODE_STATE_NORMAL;
-    n->colors = (NodeColors){.normal = WHITE,
-                             .hovered = WHITE,
-                             .text = WHITE,
-                             .down = WHITE,
-                             .highlighted = WHITE};
+    n->colors = (NodeColors){.normal = BLUE,
+                             .hovered = DARKBLUE,
+                             .text = GREEN,
+                             .down = VIOLET,
+                             .highlighted = YELLOW};
     n->radius = NODE_MINIMUM_RADIUS;
     n->editing = true;
     n->moving = false;

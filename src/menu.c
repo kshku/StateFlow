@@ -79,6 +79,7 @@ void menu_load(GlobalState *gs) {
     darray_clear(gs->tlines);
 
     free(gs->alphabet);
+    gs->alphabet = NULL;
     gs->alphabet_len = 0;
 }
 

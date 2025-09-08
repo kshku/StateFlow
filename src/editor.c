@@ -82,6 +82,7 @@ static TLineColors tline_colors = {.text = GREEN,
                                    .down = BLACK,
                                    .hovered = DARKBLUE,
                                    .highlighted = YELLOW};
+static CheckBoxColors cb_colors = {.outer = GREEN, .inner = RED};
 
 enum { TRT_FROM, TRT_INPUTS, TRT_TO, TRT_MAX };
 
@@ -165,7 +166,7 @@ void editor_load(GlobalState *gs) {
 
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) {
         check_box_create(&check_boxes[i], check_box_rects[i]);
-        check_box_set_color(&check_boxes[i], GREEN);
+        check_box_set_colors(&check_boxes[i], cb_colors);
     }
 
     struct {
@@ -668,6 +669,7 @@ static void on_simulate_button_clicked(GlobalState *gs) {
         if (!new_alphabet) return;
         gs->alphabet = new_alphabet;
         for (u64 i = 0; i < len; ++i) gs->alphabet[i] = alphabet[i];
+        gs->alphabet[len] = 0;
         gs->alphabet_len = len;
     }
 
@@ -698,18 +700,19 @@ static void on_transition_add_button_clicked(GlobalState *gs) {
     u32 len;
     const char *inputs = input_box_get_text(&tr_input, &len);
     u64 tlines_length = darray_get_size(gs->tlines);
-    for (u64 i = 0; i < tlines_length; ++i) {
-        if ((gs->tlines[i].start == node_selectors[NODE_SELECTOR_FROM].node)
-            && (gs->tlines[i].end == node_selectors[NODE_SELECTOR_TO].node)) {
-            tline_append_inputs(&gs->tlines[i], inputs, len);
-            for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
-                node_selectors[i].node = NULL;
-            input_box_set_text(&tr_input, NULL, 0);
-            return;
-        }
-    }
-
     if (!selected_tline) {
+        for (u64 i = 0; i < tlines_length; ++i) {
+            if ((gs->tlines[i].start == node_selectors[NODE_SELECTOR_FROM].node)
+                && (gs->tlines[i].end
+                    == node_selectors[NODE_SELECTOR_TO].node)) {
+                tline_append_inputs(&gs->tlines[i], inputs, len);
+                for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i)
+                    node_selectors[i].node = NULL;
+                input_box_set_text(&tr_input, NULL, 0);
+                return;
+            }
+        }
+
         TLine tline;
         tline_create(&tline);
         tline_set_colors(&tline, tline_colors);

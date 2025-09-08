@@ -34,56 +34,56 @@ void stateflow_initialize(void) {
 
     // ##########################################
     // For the development phase
-    gs.alphabet = malloc(2 * sizeof(char));
-    gs.alphabet[0] = 'a';
-    gs.alphabet[1] = 0;
-    gs.alphabet_len = 1;
-    NodeColors node_colors = {.text = GREEN,
-                              .normal = BLUE,
-                              .hovered = DARKBLUE,
-                              .down = VIOLET,
-                              .highlighted = YELLOW};
-    TLineColors tline_colors = {.text = GREEN,
-                                .normal = GREEN,
-                                .down = BLACK,
-                                .hovered = DARKBLUE,
-                                .highlighted = YELLOW};
-    gs.fsm_type = FSM_TYPE_DFA;
-    Node node;
-    node_create(&node, (Vector2){500, 300});
-    node_set_colors(&node, node_colors);
-    node_set_font(&node, gs.font, 32);
-    node_set_name(&node, "a", 1);
-    node.initial_state = true;
-    node.accepting_state = true;
-    darray_push(&gs.nodes, node);
+    // gs.alphabet = malloc(2 * sizeof(char));
+    // gs.alphabet[0] = 'a';
+    // gs.alphabet[1] = 0;
+    // gs.alphabet_len = 1;
+    // NodeColors node_colors = {.text = GREEN,
+    //                           .normal = BLUE,
+    //                           .hovered = DARKBLUE,
+    //                           .down = VIOLET,
+    //                           .highlighted = YELLOW};
+    // TLineColors tline_colors = {.text = GREEN,
+    //                             .normal = GREEN,
+    //                             .down = BLACK,
+    //                             .hovered = DARKBLUE,
+    //                             .highlighted = YELLOW};
+    // gs.fsm_type = FSM_TYPE_DFA;
+    // Node node;
+    // node_create(&node, (Vector2){500, 300});
+    // node_set_colors(&node, node_colors);
+    // node_set_font(&node, gs.font, 32);
+    // node_set_name(&node, "a", 1);
+    // node.initial_state = true;
+    // node.accepting_state = true;
+    // darray_push(&gs.nodes, node);
 
-    node_create(&node, (Vector2){700, 500});
-    node_set_colors(&node, node_colors);
-    node_set_font(&node, gs.font, 32);
-    node_set_name(&node, "a", 1);
-    node.initial_state = false;
-    node.accepting_state = false;
-    darray_push(&gs.nodes, node);
+    // node_create(&node, (Vector2){700, 500});
+    // node_set_colors(&node, node_colors);
+    // node_set_font(&node, gs.font, 32);
+    // node_set_name(&node, "a", 1);
+    // node.initial_state = false;
+    // node.accepting_state = false;
+    // darray_push(&gs.nodes, node);
 
-    TLine tline;
-    tline_create(&tline);
-    tline_set_colors(&tline, tline_colors);
-    tline_set_start_node(&tline, &gs.nodes[0]);
-    tline_set_end_node(&tline, &gs.nodes[1]);
-    tline_set_inputs(&tline, "a", 1);
-    tline_set_font(&tline, gs.font);
-    darray_push(&gs.tlines, tline);
+    // TLine tline;
+    // tline_create(&tline);
+    // tline_set_colors(&tline, tline_colors);
+    // tline_set_start_node(&tline, &gs.nodes[0]);
+    // tline_set_end_node(&tline, &gs.nodes[1]);
+    // tline_set_inputs(&tline, "a", 1);
+    // tline_set_font(&tline, gs.font);
+    // darray_push(&gs.tlines, tline);
 
-    tline_create(&tline);
-    tline_set_colors(&tline, tline_colors);
-    tline_set_start_node(&tline, &gs.nodes[1]);
-    tline_set_end_node(&tline, &gs.nodes[0]);
-    tline_set_inputs(&tline, "a", 1);
-    tline_set_font(&tline, gs.font);
-    darray_push(&gs.tlines, tline);
+    // tline_create(&tline);
+    // tline_set_colors(&tline, tline_colors);
+    // tline_set_start_node(&tline, &gs.nodes[1]);
+    // tline_set_end_node(&tline, &gs.nodes[0]);
+    // tline_set_inputs(&tline, "a", 1);
+    // tline_set_font(&tline, gs.font);
+    // darray_push(&gs.tlines, tline);
 
-    state.current_screen = &animation;
+    // state.current_screen = &animation;
     // ##################################################
 
     state.current_screen->load(&gs);
@@ -95,6 +95,7 @@ void stateflow_shutdown(void) {
     darray_destroy(gs.nodes);
     darray_destroy(gs.tlines);
     free(gs.alphabet);
+    gs.alphabet = NULL;
 
     UnloadFont(gs.font);
 
