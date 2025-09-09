@@ -120,6 +120,7 @@ i32 input_box_update(InputBox *ib, Vector2 mpos, i32 handled) {
 static void take_input_text(InputBox *ib) {
     for (int key = GetCharPressed(); key > 0; key = GetCharPressed()) {
         // Key validation
+
         if ((key >= 32 && key <= 126) && ib->index < ib->max_len) {
             ib->text[ib->index++] = key;
             ib->text[ib->index] = 0;

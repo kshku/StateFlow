@@ -38,10 +38,13 @@ bool store_fsm_to_file(GlobalState *gs, const char *file_name) {
     else if (gs->fsm_type == FSM_TYPE_NFA)
         fprintf(file, "FSM_TYPE: %s\n", "NFA");
 
+    fprintf(file, "Alphabet: \"%s\" %" SCNu64 "\n",
+            gs->alphabet ? gs->alphabet : "NULL", gs->alphabet_len);
+
     u64 nodes_length = darray_get_size(gs->nodes);
     fprintf(file, "NODES:\n");
     for (u64 i = 0; i < nodes_length; ++i) {
-        fprintf(file, "%s %u, %f %f, %u %u\n",
+        fprintf(file, "\"%s\" %" SCNu32 ", %f %f, %u %u\n",
                 gs->nodes[i].name ? gs->nodes[i].name : "NULL",
                 gs->nodes[i].name_length, gs->nodes[i].center.x,
                 gs->nodes[i].center.y, gs->nodes[i].initial_state,
@@ -57,8 +60,8 @@ bool store_fsm_to_file(GlobalState *gs, const char *file_name) {
             if (&gs->nodes[j] == gs->tlines[i].start) start_idx = j;
             if (&gs->nodes[j] == gs->tlines[i].end) end_idx = j;
         }
-        fprintf(file, "%s %u, %lu %lu", gs->tlines[i].inputs, gs->tlines[i].len,
-                start_idx, end_idx);
+        fprintf(file, "\"%s\" %" SCNu32 ", %" SCNu64 " %" SCNu64 "\n",
+                gs->tlines[i].inputs, gs->tlines[i].len, start_idx, end_idx);
     }
 
     fclose(file);
@@ -77,6 +80,19 @@ bool load_fsm_from_file(GlobalState *gs, const char *file_name) {
     else if (!strcmp(buf, "NFA")) gs->fsm_type = FSM_TYPE_NFA;
     else goto failed;
 
+    if (fscanf(file, "Alphabet: \"%[^\"]\" %" SCNu64 "\n", buf,
+               &gs->alphabet_len)
+        != 2)
+        goto failed;
+
+    if (gs->alphabet_len) {
+        char *new_alphabet =
+            realloc(gs->alphabet, (gs->alphabet_len + 1) * sizeof(char));
+        if (!new_alphabet) goto failed;
+        gs->alphabet = new_alphabet;
+        for (u64 i = 0; i < gs->alphabet_len; ++i) gs->alphabet[i] = buf[i];
+    }
+
     // TODO: Can we validate?
     fscanf(file, "NODES:\n");
 
@@ -90,14 +106,18 @@ bool load_fsm_from_file(GlobalState *gs, const char *file_name) {
         u32 len;
         Vector2 center;
         Node node;
-        if (fscanf(file, "%s %u, %f %f, %u %u\n", buf, &len, &center.x,
-                   &center.y, &node.initial_state, &node.accepting_state)
+        u8 initial, accepting;
+        if (fscanf(file,
+                   "\"%[^\"]\" %" SCNu32 ", %f %f, %" SCNu8 " %" SCNu8 "\n",
+                   buf, &len, &center.x, &center.y, &initial, &accepting)
             != 6)
             goto failed;
         node_create(&node, center);
         node_set_name(&node, buf, len);
         node_set_font(&node, gs->font, 32);
         node.editing = true;
+        node.initial_state = initial;
+        node.accepting_state = accepting;
         darray_push(&gs->nodes, node);
     }
 
@@ -113,7 +133,8 @@ bool load_fsm_from_file(GlobalState *gs, const char *file_name) {
 
         u64 start_idx, end_idx;
         u32 len;
-        if (fscanf(file, "%s %u, %lu %lu\n", buf, &len, &start_idx, &end_idx)
+        if (fscanf(file, "\"%[^\"]\" %" SCNu32 ", %" SCNu64 " %" SCNu64 "\n",
+                   buf, &len, &start_idx, &end_idx)
             != 4)
             goto failed;
 

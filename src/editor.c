@@ -694,6 +694,20 @@ static void on_simulate_button_clicked(GlobalState *gs) {
 }
 
 static void on_save_button_clicked(GlobalState *gs) {
+    u32 len;
+    const char *alphabet =
+        input_box_get_text(&input_boxes[INPUT_BOX_ALPHABET], &len);
+    if (!len) alphabet = NULL;
+
+    if (alphabet) {
+        char *new_alphabet = realloc(gs->alphabet, (len + 1) * sizeof(char));
+        if (!new_alphabet) return;
+        gs->alphabet = new_alphabet;
+        for (u64 i = 0; i < len; ++i) gs->alphabet[i] = alphabet[i];
+        gs->alphabet[len] = 0;
+        gs->alphabet_len = len;
+    }
+
     const char *filters[] = {"*.fsm"};
     char *file_name =
         tinyfd_saveFileDialog("Save FSM file", NULL, 1, filters, "FSM file");
