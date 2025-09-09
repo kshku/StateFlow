@@ -38,8 +38,6 @@ void button_destroy(Button *btn);
 
 void button_set_colors(Button *btn, ButtonColors colors);
 
-// void button_set_color(Button *btn, Color btn_color, Color text_color);
-
 i32 button_update(Button *btn, Vector2 mpos, u32 handled);
 
 void button_disable(Button *btn);

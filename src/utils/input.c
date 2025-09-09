@@ -23,6 +23,7 @@ void input_box_create(InputBox *ib, Rectangle rect, u32 max_len) {
     input_box_set_font(ib, GetFontDefault());
     ib->colors = (InputBoxColors){.box = WHITE, .text = BLACK};
     ib->frame_counter = 0;
+    ib->disabled = false;
 }
 
 void input_box_set_font(InputBox *ib, Font font) {
@@ -50,7 +51,8 @@ void input_box_set_colors(InputBox *ib, InputBoxColors colors) {
 }
 
 void input_box_draw(InputBox *ib) {
-    DrawRectangleRec(ib->rect, ib->colors.box);
+    float alpha = ib->disabled ? 0.5 : 1;
+    DrawRectangleRec(ib->rect, Fade(ib->colors.box, alpha));
     // u32 idx = 0;
     // if (ib->index >= ib->chars_to_show) idx = ib->index - ib->chars_to_show +
     // +1 for the underscore (cursor)
@@ -66,10 +68,11 @@ void input_box_draw(InputBox *ib) {
     }
 
     DrawTextEx(ib->font, &ib->text[idx], ib->position, ib->font_size, 1.0f,
-               ib->colors.text);
+               Fade(ib->colors.text, alpha));
 }
 
 i32 input_box_update(InputBox *ib, Vector2 mpos, i32 handled) {
+    if (ib->disabled) return handled;
     ib->frame_counter++;
     if (ib->focused && !IS_INPUT_HANDLED(handled, INPUT_KEYSTROKES)) {
         SetMouseCursor(MOUSE_CURSOR_IBEAM);
@@ -155,4 +158,12 @@ void input_box_append_text_at(InputBox *ib, const char *text, u32 len,
          ++i, ++ib->index)
         ib->text[ib->index] = text[i];
     ib->text[ib->index] = 0;
+}
+
+void input_box_disable(InputBox *ib) {
+    ib->disabled = true;
+}
+
+void input_box_enable(InputBox *ib) {
+    ib->disabled = false;
 }

@@ -38,11 +38,17 @@ void node_destroy(Node *n) {
 }
 
 void node_set_name(Node *n, const char *name, u32 len) {
-    char *new_name = (char *)realloc(n->name, (len + 1) * sizeof(char));
-    if (!new_name) {
+    if (!len) {
         n->radius = NODE_MINIMUM_RADIUS;
+        free(n->name);
+        n->name = NULL;
+        n->name_length = 0;
         return;
     }
+
+    char *new_name = (char *)realloc(n->name, (len + 1) * sizeof(char));
+    if (!new_name) return;
+
     strncpy(new_name, name, len);
     new_name[len] = 0;
     n->name_length = len;
@@ -63,7 +69,7 @@ void node_set_font(Node *n, Font font, float font_size) {
 
     if (n->name) {
         Vector2 size = MeasureTextEx(n->font, n->name, n->font_size, 1.0f);
-        n->radius = size.x / 2;
+        n->radius = CLAMP_MIN((size.x / 2.0f), NODE_MINIMUM_RADIUS);
     }
 }
 

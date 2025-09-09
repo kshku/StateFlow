@@ -14,7 +14,7 @@ target_compile_definitions(${APP_NAME} PRIVATE
 target_sources(${APP_NAME} PRIVATE ${SRCS})
 
 if(TARGET_PLATFORM STREQUAL "Desktop")
-    target_link_libraries(${APP_NAME} PRIVATE raylib)
+    target_link_libraries(${APP_NAME} PRIVATE raylib tfd)
 elseif(TARGET_PLATFORM STREQUAL "Android")
     target_link_libraries(${APP_NAME} PRIVATE
         raylib
@@ -37,6 +37,6 @@ elseif(TARGET_PLATFORM STREQUAL "Android")
     )
 endif()
 
-target_include_directories(${APP_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/raylib/src ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${APP_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/raylib/src ${PROJECT_SOURCE_DIR}/external/tinyfiledialogs ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(utils)

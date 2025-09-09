@@ -20,11 +20,6 @@ void button_set_colors(Button *btn, ButtonColors colors) {
     text_box_set_color(&btn->text, colors.text);
 }
 
-// void button_set_color(Button *btn, Color btn_color, Color text_color) {
-//     btn->color = btn_color;
-//     text_box_set_color(&btn->text, text_color);
-// }
-
 void button_draw(Button *btn) {
     Color color;
     switch (btn->state) {

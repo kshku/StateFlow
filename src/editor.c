@@ -1,6 +1,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <stdlib.h>
+#include <tinyfiledialogs.h>
 
 #include "stateflow.h"
 #include "utils/button.h"
@@ -693,7 +694,14 @@ static void on_simulate_button_clicked(GlobalState *gs) {
 }
 
 static void on_save_button_clicked(GlobalState *gs) {
-    UNUSED(gs);
+    const char *filters[] = {"*.fsm"};
+    char *file_name =
+        tinyfd_saveFileDialog("Save FSM file", NULL, 1, filters, "FSM file");
+
+    if (!file_name) return;
+
+    if (!store_fsm_to_file(gs, file_name))
+        TraceLog(LOG_ERROR, "Failed to save!");
 }
 
 static void on_transition_add_button_clicked(GlobalState *gs) {

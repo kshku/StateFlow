@@ -1,9 +1,11 @@
 #include <raymath.h>
 #include <stdlib.h>
+#include <tinyfiledialogs.h>
 
 #include "stateflow.h"
 #include "utils/button.h"
 #include "utils/darray.h"
+#include "utils/funcs.h"
 #include "utils/node.h"
 #include "utils/text.h"
 #include "utils/tline.h"
@@ -158,8 +160,16 @@ static void on_nfa_button_clicked(GlobalState *gs) {
 }
 
 static void on_load_button_clicked(GlobalState *gs) {
-    // button_enable(&buttons[BUTTON_DFA]);
-    gs->next_screen = &splash_screen;
+    const char *filters[] = {"*.fsm"};
+    char *file_name = tinyfd_openFileDialog("Open the FSM file", NULL, 1,
+                                            filters, "FSM files", 0);
+
+    if (!file_name) return;
+
+    if (load_fsm_from_file(gs, file_name)) {
+        gs->next_screen = &editor;
+        change_screen = true;
+    }
 }
 
 Screen menu = (Screen){.load = menu_load,
