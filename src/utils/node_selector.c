@@ -64,9 +64,8 @@ i32 node_selector_update(NodeSelector *ns, Node *nodes, Vector2 mpos,
 void node_selector_draw(NodeSelector *ns) {
     DrawRectangleRec(ns->rect, WHITE);
     if (ns->node) {
-        u32 idx = 0;
-        if (ns->node->name_length >= ns->chars_to_show)
-            idx = ns->node->name_length - ns->chars_to_show;
+        u32 idx =
+            CLAMP_MIN((i32)(ns->node->name_length - ns->chars_to_show), 0);
         DrawTextEx(ns->font, &ns->node->name[idx], ns->position, ns->font_size,
                    1.0f, BLACK);
     }
@@ -76,9 +75,11 @@ void node_selector_set_font(NodeSelector *ns, Font font) {
     ns->font = font;
 
     Vector2 size = MeasureTextEx(font, "A", ns->font_size, 1.0f);
-    ns->chars_to_show = (u32)ns->rect.width / size.x;
-    ns->position = (Vector2){
-        .x = ns->rect.x
-           + ((ns->rect.width - ((ns->chars_to_show - 1) * size.x)) / 2),
-        .y = ns->rect.y + ((ns->rect.height - size.y) / 2)};
+    ns->chars_to_show = (u32)(ns->rect.width / size.x);
+    ns->chars_to_show -= 1;
+    ns->position = (Vector2){.x = ns->rect.x, .y = ns->rect.y};
+    // ns->position = (Vector2){
+    //     .x = ns->rect.x
+    //        + ((ns->rect.width - ((ns->chars_to_show - 1) * size.x)) / 2),
+    //     .y = ns->rect.y + ((ns->rect.height - size.y) / 2)};
 }

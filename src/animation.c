@@ -12,10 +12,13 @@
 #include "utils/text.h"
 
 typedef enum AnimatingState {
-    ANIMATING_STATE_NODE,
-    ANIMATING_STATE_INPUT,
-    ANIMATING_STATE_TLINE,
-    ANIMATING_STATE_RESULT,
+    ANIMATING_STATE_NONE = 0,
+    ANIMATING_STATE_NODE = 1 << 0,
+    ANIMATING_STATE_INPUT = 1 << 1,
+    ANIMATING_STATE_TLINE = 1 << 2,
+    ANIMATING_STATE_RESULT = 1 << 3,
+    ANIMATING_STATE_WATING = 1 << 4,
+    ANIMATING_STATE_DONE = 1 << 5,
 } AnimatingState;
 
 static Camera2D camera;
@@ -25,7 +28,7 @@ static Rectangle source, dest;
 static Node *initial_state = NULL;
 static Node **current_states = NULL;
 static bool invalid_input = false;
-static AnimatingState animating_state;
+static AnimatingState anim_state, anim_prev_state, anim_next_state;
 
 static InputBox input;
 static bool change_screen = false;
@@ -43,7 +46,7 @@ static Vector2 previous_input_vec, current_input_vec, next_input_vec;
 
 static const char *input_text = NULL;
 static u32 input_text_length = 0;
-static u32 input_text_index = 0;
+static i32 input_text_index = -1;
 
 enum { TEXT_BOX_INPUT, TEXT_BOX_MAX };
 
@@ -83,11 +86,11 @@ static void animation_animate(GlobalState *gs);
 void animation_load(GlobalState *gs) {
     change_screen = false;
     initial_state = NULL;
-    animating_state = ANIMATING_STATE_TLINE;
+    anim_state = anim_next_state = anim_prev_state = ANIMATING_STATE_NONE;
     animating = false;
     paused = false;
     frame_count = 0;
-    input_text_index = 0;
+    input_text_index = -1;
     invalid_input = false;
     result = RESULT_NONE;
     camera = (Camera2D){.target = (Vector2){0},
@@ -106,7 +109,6 @@ void animation_load(GlobalState *gs) {
     target = LoadRenderTexture(1600, 160);
 
     current_states = darray_create(Node *);
-    darray_push(&current_states, initial_state);
 
     InputBoxColors ib_colors = {.box = BLACK, .text = WHITE};
 
@@ -215,11 +217,13 @@ void animation_draw(GlobalState *gs) {
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
 
     if (animating) {
-        DrawTextEx(gs->font, TextSubtext(input_text, 0, input_text_index),
-                   previous_input_vec, 48, 1.0f, WHITE);
+        if (input_text_index >= 0) {
+            DrawTextEx(gs->font, TextSubtext(input_text, 0, input_text_index),
+                       previous_input_vec, 48, 1.0f, WHITE);
 
-        DrawTextEx(gs->font, TextSubtext(input_text, input_text_index, 1),
-                   current_input_vec, 72, 1.0f, WHITE);
+            DrawTextEx(gs->font, TextSubtext(input_text, input_text_index, 1),
+                       current_input_vec, 72, 1.0f, WHITE);
+        }
 
         DrawTextEx(gs->font,
                    TextSubtext(input_text, input_text_index + 1,
@@ -351,13 +355,12 @@ static void on_toggle_animation_button_clicked(GlobalState *gs) {
         animating = false;
         button_disable(&buttons[BUTTON_PAUSE]);
         result = RESULT_NONE;
-        animating_state = ANIMATING_STATE_TLINE;
+        anim_state = anim_prev_state = anim_next_state = ANIMATING_STATE_NONE;
+        input_box_enable(&input);
     } else {
-        input_text_index = 0;
+        input_text_index = -1;
         result = RESULT_NONE;
-        animating_state = ANIMATING_STATE_TLINE;
-        darray_clear(current_states);
-        darray_push(&current_states, initial_state);
+        anim_state = anim_prev_state = anim_next_state = ANIMATING_STATE_NONE;
 
         input_text = input_box_get_text(&input, &input_text_length);
         if (!all_chars_present(gs->alphabet, input_text)) {
@@ -369,6 +372,7 @@ static void on_toggle_animation_button_clicked(GlobalState *gs) {
                                  "Stop animation", 14, gs->font);
         animating = true;
         button_enable(&buttons[BUTTON_PAUSE]);
+        input_box_disable(&input);
     }
 }
 
@@ -390,17 +394,156 @@ static void on_puase_button_clicked(GlobalState *gs) {
 }
 
 static void animation_animate(GlobalState *gs) {
+    u64 current_states_length = darray_get_size(current_states);
+    u64 tlines_length = darray_get_size(gs->tlines);
+
+    switch (anim_state) {
+        case ANIMATING_STATE_NONE:
+            darray_clear(current_states);
+            darray_push(&current_states, initial_state);
+            current_states_length = darray_get_size(current_states);
+            anim_prev_state = ANIMATING_STATE_NONE;
+            anim_state = ANIMATING_STATE_WATING;
+            anim_next_state = ANIMATING_STATE_INPUT;
+            break;
+        case ANIMATING_STATE_NODE:
+            if (gs->fsm_type == FSM_TYPE_DFA) {
+                Node *next_state =
+                    dfa_transition(current_states[0], gs->tlines, tlines_length,
+                                   input_text[input_text_index]);
+                darray_pop(&current_states, NULL);
+                darray_push(&current_states, next_state);
+                current_states_length = darray_get_size(current_states);
+            } else if (gs->fsm_type == FSM_TYPE_NFA) {
+                Node **next_states = darray_create(Node *);
+                for (u64 i = 0; i < current_states_length; ++i)
+                    next_states = nfa_transition(current_states[i], next_states,
+                                                 gs->tlines, tlines_length,
+                                                 input_text[input_text_index]);
+                darray_clear(current_states);
+                u64 length = darray_get_size(next_states);
+                for (u64 i = 0; i < length; ++i)
+                    darray_push(&current_states, next_states[i]);
+                current_states_length = darray_get_size(current_states);
+                darray_destroy(next_states);
+            }
+            anim_prev_state = ANIMATING_STATE_NODE;
+            anim_state = ANIMATING_STATE_WATING;
+            anim_next_state = ANIMATING_STATE_INPUT;
+            break;
+        case ANIMATING_STATE_INPUT:
+            input_text_index =
+                CLAMP_MAX(input_text_index + 1, input_text_length);
+            if (input_text_index == input_text_length) {
+                anim_state = ANIMATING_STATE_RESULT;
+                break;
+            }
+            anim_prev_state = ANIMATING_STATE_INPUT;
+            anim_state = ANIMATING_STATE_WATING;
+            anim_next_state = ANIMATING_STATE_TLINE;
+            break;
+        case ANIMATING_STATE_TLINE:
+            anim_prev_state = ANIMATING_STATE_TLINE;
+            anim_state = ANIMATING_STATE_WATING;
+            anim_next_state = ANIMATING_STATE_NODE;
+            break;
+        case ANIMATING_STATE_RESULT:
+            result = RESULT_REJECTED;
+            anim_state = ANIMATING_STATE_DONE;
+            for (u64 i = 0; i < current_states_length; ++i) {
+                if (current_states[i]->accepting_state) {
+                    result = RESULT_ACCEPTED;
+                    anim_state = ANIMATING_STATE_DONE;
+                    break;
+                }
+            }
+            break;
+        case ANIMATING_STATE_WATING:
+            if (frame_count % 60 == 0) anim_state = anim_next_state;
+            break;
+        case ANIMATING_STATE_DONE:
+        default:
+            break;
+    }
+
+    for (u64 i = 0; i < current_states_length; ++i)
+        current_states[i]->state = NODE_STATE_HIGHLIGHTED;
+
+    if (anim_prev_state == ANIMATING_STATE_TLINE) {
+        for (u64 i = 0; i < tlines_length; ++i) {
+            for (u64 j = 0; j < current_states_length; ++j) {
+                if (gs->tlines[i].start == current_states[j]) {
+                    char input_str[] = {input_text[input_text_index], 0};
+                    if (all_chars_present(gs->tlines[i].inputs, input_str)) {
+                        gs->tlines[i].state = TLINE_STATE_HIGHLIGHTED;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // switch (anim_prev_state) {
+    //     case ANIMATING_STATE_NONE:
+    //         break;
+    //     case ANIMATING_STATE_NODE:
+    //         break;
+    //     case ANIMATING_STATE_INPUT:
+    //         break;
+    //     case ANIMATING_STATE_TLINE:
+    //         break;
+    //     case ANIMATING_STATE_RESULT:
+    //         break;
+    //     case ANIMATING_STATE_WATING:
+    //         break;
+    //     default:
+    //         break;
+    // }
+
+    i32 width = GetScreenWidth();
+    i32 height = GetScreenHeight();
+
+    if (input_text_index >= 0) {
+        Vector2 prev_size = MeasureTextEx(
+            gs->font, TextSubtext(input_text, 0, input_text_index), 48, 1.0f);
+        Vector2 cur_size = MeasureTextEx(
+            gs->font, TextSubtext(input_text, input_text_index, 1), 72, 1.0f);
+        Vector2 next_size = MeasureTextEx(
+            gs->font,
+            TextSubtext(input_text, input_text_index + 1,
+                        (input_text_length - input_text_index - 1)),
+            48, 1.0f);
+
+        previous_input_vec =
+            (Vector2){.x = ((width - prev_size.x - cur_size.x) / 2.0f),
+                      .y = height - prev_size.y};
+        current_input_vec = (Vector2){.x = previous_input_vec.x + prev_size.x,
+                                      .y = height - cur_size.y};
+        next_input_vec = (Vector2){.x = current_input_vec.x + cur_size.x,
+                                   .y = height - next_size.y};
+    } else {
+        Vector2 next_size = MeasureTextEx(
+            gs->font,
+            TextSubtext(input_text, input_text_index + 1,
+                        (input_text_length - input_text_index - 1)),
+            48, 1.0f);
+        next_input_vec = (Vector2){.x = (width - next_size.x) / 2.0f,
+                                   .y = height - next_size.y};
+    }
+}
+
+static void animation_animate2(GlobalState *gs) {
     u64 tlines_length = darray_get_size(gs->tlines);
     u64 current_states_length = darray_get_size(current_states);
 
     if ((frame_count % 30) == 0) {
-        switch (animating_state) {
+        switch (anim_state) {
             case ANIMATING_STATE_NODE: {
                 if (input_text_index >= input_text_length) {
-                    animating_state = ANIMATING_STATE_RESULT;
+                    anim_state = ANIMATING_STATE_RESULT;
                     break;
                 }
-                animating_state = ANIMATING_STATE_INPUT;
+                anim_state = ANIMATING_STATE_INPUT;
                 if (gs->fsm_type == FSM_TYPE_DFA) {
                     Node *next_state = dfa_transition(
                         current_states[0], gs->tlines, tlines_length,
@@ -422,12 +565,12 @@ static void animation_animate(GlobalState *gs) {
             } break;
             case ANIMATING_STATE_INPUT: {
                 ++input_text_index;
-                animating_state = ANIMATING_STATE_TLINE;
+                anim_state = ANIMATING_STATE_TLINE;
                 if (input_text_index >= input_text_length)
-                    animating_state = ANIMATING_STATE_RESULT;
+                    anim_state = ANIMATING_STATE_RESULT;
             } break;
             case ANIMATING_STATE_TLINE: {
-                animating_state = ANIMATING_STATE_NODE;
+                anim_state = ANIMATING_STATE_NODE;
             } break;
             case ANIMATING_STATE_RESULT: {
                 u64 length = darray_get_size(current_states);
