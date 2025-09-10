@@ -45,15 +45,15 @@ DfaState is_dfa_valid(Node *nodes, TLine *tlines, const char *alphabet) {
         for (u64 j = 0; j < tlines_length; ++j) {
             if (tlines[j].start == &nodes[i]) {
                 for (u64 k = 0; k < tlines[j].len; ++k) {
-                    buf[tlines[j].inputs[k]]++;
-                    if (buf[tlines[j].inputs[k]] > 1)
+                    buf[(int)tlines[j].inputs[k]]++;
+                    if (buf[(int)tlines[j].inputs[k]] > 1)
                         return DFA_STATE_MULTIPLE_TRANSITIONS_DEFINED;
                 }
             }
         }
 
         for (u64 i = 0; alphabet[i]; ++i) {
-            if (!buf[alphabet[i]]) {
+            if (!buf[(int)alphabet[i]]) {
                 // TraceLog(LOG_INFO, "%c", alphabet[i]);
                 return DFA_STATE_REQUIRE_ALL_INPUT_TRANSITIONS;
             }
@@ -83,4 +83,6 @@ Node *dfa_transition(Node *current_state, TLine *tlines, u64 tlines_length,
             && all_chars_present(tlines[i].inputs, input_str))
             return tlines[i].end;
     }
+
+    return NULL;
 }

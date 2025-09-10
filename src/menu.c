@@ -10,8 +10,6 @@
 #include "utils/text.h"
 #include "utils/tline.h"
 
-static TextBox test;
-static Button button;
 static RenderTexture2D target;
 static Rectangle source, dest;
 static float scale;
@@ -28,18 +26,16 @@ static void on_load_button_clicked(GlobalState *gs);
 static void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
     on_dfa_button_clicked, on_nfa_button_clicked, on_load_button_clicked};
 
-static Color bg = DARKGRAY;
+static Color bg;
 
 static void menu_update_transforms(void);
 
 static Vector2 menu_get_transformed_mouse_position(void);
 
 void menu_load(GlobalState *gs) {
+    bg = DARKGRAY;
     change_screen = false;
     target = LoadRenderTexture(1600, 1600);
-    float x = 250;
-    float width = 300;
-    float height = 48;
     Rectangle rect;
     rect.width = (target.texture.width / 3) * 2;
     rect.height = target.texture.height / 15;
@@ -78,6 +74,7 @@ void menu_load(GlobalState *gs) {
 }
 
 void menu_unload(GlobalState *gs) {
+    UNUSED(gs);
     for (i32 i = 0; i < BUTTON_MAX; ++i) button_destroy(&buttons[i]);
 
     UnloadRenderTexture(target);
@@ -100,6 +97,7 @@ ScreenChangeType menu_update(GlobalState *gs) {
 }
 
 void menu_before_draw(GlobalState *gs) {
+    UNUSED(gs);
     BeginTextureMode(target);
 
     ClearBackground(bg);
@@ -109,6 +107,7 @@ void menu_before_draw(GlobalState *gs) {
 }
 
 void menu_draw(GlobalState *gs) {
+    UNUSED(gs);
     ClearBackground(bg);
 
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
@@ -164,8 +163,8 @@ static void on_load_button_clicked(GlobalState *gs) {
     }
 }
 
-Screen menu = (Screen){.load = menu_load,
-                       .unload = menu_unload,
-                       .draw = menu_draw,
-                       .before_draw = menu_before_draw,
-                       .update = menu_update};
+Screen menu = {.load = menu_load,
+               .unload = menu_unload,
+               .draw = menu_draw,
+               .before_draw = menu_before_draw,
+               .update = menu_update};

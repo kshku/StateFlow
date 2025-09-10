@@ -11,6 +11,8 @@ target_compile_definitions(${APP_NAME} PRIVATE
     STATEFLOW_NAME="${PROJECT_NAME}"
 )
 
+target_compile_options(${APP_NAME} PRIVATE "$<${gcc_clang}:$<BUILD_INTERFACE:-Wall;-Wextra;-Wformat;-Wuninitialized;-Wpedantic>>")
+
 target_sources(${APP_NAME} PRIVATE ${SRCS})
 
 if(TARGET_PLATFORM STREQUAL "Desktop")

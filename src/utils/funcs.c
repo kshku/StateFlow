@@ -131,15 +131,15 @@ bool load_fsm_from_file(GlobalState *gs, const char *file_name) {
         if (c == EOF) break;
         ungetc(c, file);
 
-        u64 start_idx, end_idx;
+        i64 start_idx, end_idx;
         u32 len;
-        if (fscanf(file, "\"%[^\"]\" %" SCNu32 ", %" SCNu64 " %" SCNu64 "\n",
+        if (fscanf(file, "\"%[^\"]\" %" SCNu32 ", %" SCNi64 " %" SCNi64 "\n",
                    buf, &len, &start_idx, &end_idx)
             != 4)
             goto failed;
 
-        if (start_idx < 0 || start_idx >= nodes_length) goto failed;
-        if (end_idx < 0 || end_idx >= nodes_length) goto failed;
+        if (start_idx < 0 || start_idx >= (i64)nodes_length) goto failed;
+        if (end_idx < 0 || end_idx >= (i64)nodes_length) goto failed;
 
         TLine tline;
         tline_create(&tline);

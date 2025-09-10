@@ -67,7 +67,7 @@ void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
     on_change_mode_button_clicked, on_simulate_button_clicked,
     on_save_button_clicked};
 
-static Color bg = DARKGRAY;
+static Color bg;
 static KeyboardKey navigation_keys[][4] = {
     {   KEY_A,     KEY_D,  KEY_W,    KEY_S},
     {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN},
@@ -93,6 +93,7 @@ static i32 editor_update_nodes_and_tlines(GlobalState *gs, Vector2 mpos,
 static void on_transition_add_button_clicked(GlobalState *gs);
 
 void editor_load(GlobalState *gs) {
+    bg = DARKGRAY;
     change_screen = false;
     camera = (Camera2D){
         .target = (Vector2){.x = 0, .y = 0},
@@ -206,10 +207,8 @@ void editor_load(GlobalState *gs) {
 
     struct {
             Rectangle rect;
-    } selector_params[NODE_SELECTOR_MAX] = {
-        {160, 90, 150, 48},
-        {870, 90, 150, 48}
-    };
+    } selector_params[NODE_SELECTOR_MAX] = {{{160, 90, 150, 48}},
+                                            {{870, 90, 150, 48}}};
 
     for (u32 i = 0; i < NODE_SELECTOR_MAX; ++i) {
         node_selector_create(&node_selectors[i], selector_params[i].rect);
@@ -222,6 +221,7 @@ void editor_load(GlobalState *gs) {
 }
 
 void editor_unload(GlobalState *gs) {
+    UNUSED(gs);
     for (i32 i = 0; i < TEXT_BOX_MAX; ++i) text_box_destroy(&text_boxes[i]);
     for (i32 i = 0; i < INPUT_BOX_MAX; ++i) input_box_destroy(&input_boxes[i]);
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) check_box_destroy(&check_boxes[i]);
@@ -424,6 +424,7 @@ void editor_draw(GlobalState *gs) {
 }
 
 void editor_before_draw(GlobalState *gs) {
+    UNUSED(gs);
     BeginTextureMode(target);
 
     ClearBackground(GRAY);
@@ -609,7 +610,7 @@ static i32 editor_update_nodes_and_tlines(GlobalState *gs, Vector2 mpos,
 
     u64 length = darray_get_size(gs->tlines);
     for (i32 i = length - 1; i > -1; --i) {
-        if (&gs->tlines[i] == selected_tline) continue;
+        if (&gs->tlines[i] == prev_selected) continue;
         handled = tline_update(&gs->tlines[i], mpos, handled);
         if (gs->tlines[i].selected) {
             selected_tline = &gs->tlines[i];

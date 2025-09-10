@@ -13,11 +13,13 @@ static float scale;
 static Vector2 position;
 static float alpha = 0.0f;
 
-static Color bg = DARKGRAY;
+static Color bg;
 
 static void splash_screen_update_transforms(void);
 
 void splash_screen_load(GlobalState *gs) {
+    UNUSED(gs);
+    bg = DARKGRAY;
     target = LoadRenderTexture(1600, 1200);
     state = 0;
     frame_count = 0;
@@ -34,6 +36,7 @@ void splash_screen_load(GlobalState *gs) {
 }
 
 void splash_screen_unload(GlobalState *gs) {
+    UNUSED(gs);
     UnloadRenderTexture(target);
     if (alpha < 1.0f) TraceLog(LOG_INFO, "Alpha is not 1");
 }
@@ -85,6 +88,7 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
 }
 
 void splash_screen_before_draw(GlobalState *gs) {
+    UNUSED(gs);
     BeginTextureMode(target);
 
     ClearBackground(bg);
@@ -126,6 +130,7 @@ void splash_screen_before_draw(GlobalState *gs) {
 }
 
 void splash_screen_draw(GlobalState *gs) {
+    UNUSED(gs);
     ClearBackground(bg);
 
     DrawTexturePro(target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
@@ -149,8 +154,8 @@ static void splash_screen_update_transforms(void) {
     dest.y = (height - dest.height) / 2;
 }
 
-Screen splash_screen = (Screen){.load = splash_screen_load,
-                                .unload = splash_screen_unload,
-                                .draw = splash_screen_draw,
-                                .before_draw = splash_screen_before_draw,
-                                .update = splash_screen_update};
+Screen splash_screen = {.load = splash_screen_load,
+                        .unload = splash_screen_unload,
+                        .draw = splash_screen_draw,
+                        .before_draw = splash_screen_before_draw,
+                        .update = splash_screen_update};

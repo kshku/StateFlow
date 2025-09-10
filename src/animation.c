@@ -63,7 +63,7 @@ enum {
 
 static Button buttons[BUTTON_MAX];
 
-static Color bg = DARKGRAY;
+static Color bg;
 static KeyboardKey navigation_keys[][4] = {
     {   KEY_A,     KEY_D,  KEY_W,    KEY_S},
     {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN},
@@ -86,6 +86,7 @@ static void (*on_button_clicked[BUTTON_MAX])(GlobalState *gs) = {
 static void animation_animate(GlobalState *gs);
 
 void animation_load(GlobalState *gs) {
+    bg = DARKGRAY;
     change_screen = false;
     initial_state = NULL;
     anim_state = anim_next_state = anim_prev_state = ANIMATING_STATE_NONE;
@@ -151,6 +152,7 @@ void animation_load(GlobalState *gs) {
 }
 
 void animation_unload(GlobalState *gs) {
+    UNUSED(gs);
     UnloadRenderTexture(target);
 
     input_box_destroy(&input);
@@ -242,6 +244,7 @@ void animation_draw(GlobalState *gs) {
 }
 
 void animation_before_draw(GlobalState *gs) {
+    UNUSED(gs);
     BeginTextureMode(target);
     ClearBackground(GRAY);
 
@@ -280,7 +283,7 @@ static i32 animation_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
 
             if (IsKeyDown(KEY_BACKSPACE)) on_back_to_editor_button_clicked(gs);
 
-            MARK_INPUT_HANDLED(handled, INPUT_KEYSTROKES);
+            handled = MARK_INPUT_HANDLED(handled, INPUT_KEYSTROKES);
         }
 
         bool panning = false;
@@ -315,6 +318,8 @@ static i32 animation_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
 
         return handled;
     }
+
+    return handled;
 }
 
 static Vector2 animation_get_transformed_mouse_position(void) {
@@ -424,8 +429,8 @@ static void animation_animate(GlobalState *gs) {
             break;
         case ANIMATING_STATE_INPUT:
             input_text_index =
-                CLAMP_MAX(input_text_index + 1, input_text_length);
-            if (input_text_index == input_text_length) {
+                CLAMP_MAX(input_text_index + 1, (i32)input_text_length);
+            if (input_text_index == (i32)input_text_length) {
                 anim_state = ANIMATING_STATE_RESULT;
                 break;
             }

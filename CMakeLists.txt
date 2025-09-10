@@ -9,6 +9,8 @@ message(STATUS "TARGET_PLATFORM = ${TARGET_PLATFORM}")
 
 set(APP_NAME stateflow)
 
+set(gcc_clang "$<COMPILE_LANG_AND_ID:C,Clang,GNU>")
+
 if(TARGET_PLATFORM STREQUAL "Desktop")
     add_executable(${APP_NAME})
 

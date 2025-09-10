@@ -130,7 +130,7 @@ void tline_append_inputs(TLine *tl, const char *input, u32 len) {
     char *new_input =
         (char *)realloc(tl->inputs, (tl->len + len + 1) * sizeof(char));
     if (!new_input) return;
-    for (i32 i = tl->len; i < tl->len + len; ++i)
+    for (u32 i = tl->len; i < tl->len + len; ++i)
         new_input[i] = input[i - tl->len];
     tl->inputs = new_input;
     tl->len += len;
@@ -164,7 +164,7 @@ static bool check_collision_point_bezier_cubic(Vector2 mpos, Vector2 p0,
 
 static void tlines_process_input(TLine *tl) {
     char buf[128] = {0};
-    for (u32 i = 0; tl->inputs[i]; ++i) buf[tl->inputs[i]]++;
+    for (u32 i = 0; tl->inputs[i]; ++i) buf[(int)tl->inputs[i]]++;
     tl->len = 0;
     for (u32 i = 0; i < 128; ++i)
         if (buf[i]) tl->inputs[tl->len++] = (char)i;
