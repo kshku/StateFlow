@@ -7,12 +7,19 @@
 
 typedef struct State {
         Screen *current_screen;
+        u64 frame_count;
+        bool transitioning;
+        bool fade_out;
+        float alpha;
 } State;
 
 static State state = {0};
 static GlobalState gs = {0};
 
 static void stateflow_change_screen(void);
+static void stateflow_fade_screen(void);
+static void stateflow_update_fading(void);
+static void stateflow_draw_fade(void);
 
 void stateflow_initialize(void) {
     InitWindow(800, 600, STATEFLOW_NAME);
@@ -31,6 +38,9 @@ void stateflow_initialize(void) {
     gs.alphabet_len = 0;
 
     state.current_screen = &splash_screen;
+    state.transitioning = false;
+    state.alpha = 0.0;
+    state.frame_count = 0;
 
     // ##########################################
     // For the development phase
@@ -104,14 +114,19 @@ void stateflow_shutdown(void) {
 
 void stateflow_run(void) {
     while (!WindowShouldClose()) {
-        // stateflow_update_global_state();
-
-        switch (state.current_screen->update(&gs)) {
-            case SCREEN_CHANGE:
-                stateflow_change_screen();
-            case SCREEN_SAME:
-            default:
-                break;
+        if (state.transitioning) {
+            stateflow_update_fading();
+        } else {
+            switch (state.current_screen->update(&gs)) {
+                case SCREEN_FADE:
+                    stateflow_fade_screen();
+                    break;
+                case SCREEN_CHANGE:
+                    stateflow_change_screen();
+                case SCREEN_SAME:
+                default:
+                    break;
+            }
         }
 
         if (state.current_screen->before_draw)
@@ -124,6 +139,8 @@ void stateflow_run(void) {
         //                GetScreenHeight(), GetRenderWidth(),
         //                GetRenderHeight()),
         //     50, 50, 50, GREEN);
+        if (state.transitioning) stateflow_draw_fade();
+
         EndDrawing();
     }
 }
@@ -146,35 +163,36 @@ static void stateflow_change_screen(void) {
     state.current_screen->load(&gs);
 }
 
-// void stateflow_update_global_state(void) {
-//     i32 width = GetScreenWidth();
-//     i32 height = GetScreenHeight();
-//     // i32 width = GetRenderWidth();
-//     // i32 height = GetRenderHeight();
+static void stateflow_fade_screen(void) {
+    state.transitioning = true;
+    state.alpha = 0.0;
+    state.fade_out = false;
+}
 
-//     if (width < height) {
-//         gs.virtual_width = 720;
-//         gs.virtual_height = 1280;
-//     } else {
-//         gs.virtual_height = 720;
-//         gs.virtual_width = 1280;
-//     }
+static void stateflow_update_fading(void) {
+    if (!state.fade_out) {
+        state.alpha += 0.02f;
+        if (state.alpha > 1.01f) {
+            state.alpha = 1.0f;
 
-//     float scaleX = (float)width / gs.virtual_width;
-//     float scaleY = (float)height / gs.virtual_height;
-//     float scale = fminf(scaleX, scaleY);
+            state.current_screen->unload(&gs);
+            state.current_screen = gs.next_screen;
+            gs.next_screen = NULL;
+            state.current_screen->load(&gs);
 
-//     Vector2 offset =
-//         (Vector2){.x = (width - (gs.virtual_width * scale)) * 0.5,
-//                   .y = (height - (gs.virtual_height * scale)) * 0.5};
+            state.fade_out = true;
+        }
+    } else {
+        state.alpha -= 0.02f;
+        if (state.alpha < -0.01f) {
+            state.alpha = 0.0f;
+            state.fade_out = false;
+            state.transitioning = false;
+        }
+    }
+}
 
-//     gs.camera = (Camera2D){
-//         .zoom = scale,
-//         .target = (Vector2){0, 0},
-//         .rotation = 0.0f,
-//         .offset = offset
-//     };
-
-//     SetMouseOffset(-offset.x, -offset.y);
-//     SetMouseScale(1 / scale, 1 / scale);
-// }
+static void stateflow_draw_fade(void) {
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                  Fade(BLACK, state.alpha));
+}

@@ -35,6 +35,8 @@ static bool change_screen = false;
 static bool animating = false;
 static bool paused = false;
 static u64 frame_count;
+// TODO: UI for changing the speed
+static float speed = 1.0f;
 
 enum Result {
     RESULT_NONE = 0,
@@ -448,7 +450,8 @@ static void animation_animate(GlobalState *gs) {
             }
             break;
         case ANIMATING_STATE_WATING:
-            if (frame_count % 60 == 0) anim_state = anim_next_state;
+            if (frame_count % (u64)(60 / speed) == 0)
+                anim_state = anim_next_state;
             break;
         case ANIMATING_STATE_DONE:
         default:
@@ -487,7 +490,7 @@ static void animation_animate(GlobalState *gs) {
             48, 1.0f);
 
         previous_input_vec =
-            (Vector2){.x = ((width - prev_size.x - cur_size.x) / 2.0f),
+            (Vector2){.x = (((width - cur_size.x) / 2.0f) - prev_size.x),
                       .y = height - prev_size.y};
         current_input_vec = (Vector2){.x = previous_input_vec.x + prev_size.x,
                                       .y = height - cur_size.y};
@@ -502,107 +505,6 @@ static void animation_animate(GlobalState *gs) {
         next_input_vec = (Vector2){.x = (width - next_size.x) / 2.0f,
                                    .y = height - next_size.y};
     }
-}
-
-static void animation_animate2(GlobalState *gs) {
-    u64 tlines_length = darray_get_size(gs->tlines);
-    u64 current_states_length = darray_get_size(current_states);
-
-    if ((frame_count % 30) == 0) {
-        switch (anim_state) {
-            case ANIMATING_STATE_NODE: {
-                if (input_text_index >= input_text_length) {
-                    anim_state = ANIMATING_STATE_RESULT;
-                    break;
-                }
-                anim_state = ANIMATING_STATE_INPUT;
-                if (gs->fsm_type == FSM_TYPE_DFA) {
-                    Node *next_state = dfa_transition(
-                        current_states[0], gs->tlines, tlines_length,
-                        input_text[input_text_index]);
-                    darray_pop(&current_states, NULL);
-                    darray_push(&current_states, next_state);
-                } else if (gs->fsm_type == FSM_TYPE_NFA) {
-                    Node **next_states = darray_create(Node *);
-                    for (u64 i = 0; i < current_states_length; ++i)
-                        next_states = nfa_transition(
-                            current_states[i], next_states, gs->tlines,
-                            tlines_length, input_text[input_text_index]);
-                    darray_clear(&current_states);
-                    u64 length = darray_get_size(next_states);
-                    for (u64 i = 0; i < length; ++i)
-                        darray_push(&current_states, next_states[i]);
-                    darray_destroy(next_states);
-                }
-            } break;
-            case ANIMATING_STATE_INPUT: {
-                ++input_text_index;
-                anim_state = ANIMATING_STATE_TLINE;
-                if (input_text_index >= input_text_length)
-                    anim_state = ANIMATING_STATE_RESULT;
-            } break;
-            case ANIMATING_STATE_TLINE: {
-                anim_state = ANIMATING_STATE_NODE;
-            } break;
-            case ANIMATING_STATE_RESULT: {
-                u64 length = darray_get_size(current_states);
-                result = RESULT_REJECTED;
-                for (u64 i = 0; i < length; ++i) {
-                    if (current_states[i]->accepting_state)
-                        result = RESULT_ACCEPTED;
-                }
-            } break;
-            default:
-                break;
-        }
-    }
-
-    // if (animating_state == ANIMATING_STATE_INPUT) {
-    if (input_text) {
-        for (u64 i = 0; i < tlines_length; ++i) {
-            for (u64 j = 0; j < current_states_length; ++j) {
-                if (gs->tlines[i].start == current_states[j]) {
-                    bool found = false;
-                    for (u32 k = 0; k < gs->tlines[i].len; ++k) {
-                        if (gs->tlines[i].inputs[k]
-                            == input_text[input_text_index]) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found) {
-                        gs->tlines[i].state = TLINE_STATE_HIGHLIGHTED;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    // }
-
-    current_states_length = darray_get_size(current_states);
-    for (u64 i = 0; i < current_states_length; ++i)
-        current_states[i]->state = NODE_STATE_HIGHLIGHTED;
-
-    int width = GetScreenWidth();
-    int height = GetScreenHeight();
-    Vector2 prev_size = MeasureTextEx(
-        gs->font, TextSubtext(input_text, 0, input_text_index), 48, 1.0f);
-    Vector2 cur_size = MeasureTextEx(
-        gs->font, TextSubtext(input_text, input_text_index, 1), 72, 1.0f);
-    Vector2 next_size =
-        MeasureTextEx(gs->font,
-                      TextSubtext(input_text, input_text_index + 1,
-                                  (input_text_length - input_text_index - 1)),
-                      48, 1.0f);
-
-    previous_input_vec =
-        (Vector2){.x = ((width - prev_size.x - cur_size.x) / 2.0f),
-                  .y = height - prev_size.y};
-    current_input_vec = (Vector2){.x = previous_input_vec.x + prev_size.x,
-                                  .y = height - cur_size.y};
-    next_input_vec = (Vector2){.x = current_input_vec.x + cur_size.x,
-                               .y = height - next_size.y};
 }
 
 Screen animation = {.load = animation_load,

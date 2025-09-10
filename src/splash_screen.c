@@ -71,7 +71,7 @@ ScreenChangeType splash_screen_update(GlobalState *gs) {
                 frame_count = 0;
             } else if (frame_count > 100) {
                 gs->next_screen = &menu;
-                return SCREEN_CHANGE;
+                return SCREEN_FADE;
             }
             break;
     }

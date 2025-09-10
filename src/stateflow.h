@@ -10,6 +10,7 @@ typedef struct Screen Screen;
 typedef enum ScreenChangeType {
     SCREEN_SAME = 0,
     SCREEN_CHANGE,
+    SCREEN_FADE,
 } ScreenChangeType;
 
 typedef enum FSMType { FSM_TYPE_DFA, FSM_TYPE_NFA, FSM_TYPE_MAX } FSMType;
