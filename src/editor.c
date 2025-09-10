@@ -73,17 +73,6 @@ static KeyboardKey navigation_keys[][4] = {
     {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN},
     {   KEY_H,     KEY_L,  KEY_K,    KEY_J},
 };
-static NodeColors node_colors = {.text = GREEN,
-                                 .normal = BLUE,
-                                 .hovered = DARKBLUE,
-                                 .down = VIOLET,
-                                 .highlighted = YELLOW};
-static TLineColors tline_colors = {.text = GREEN,
-                                   .normal = GREEN,
-                                   .down = BLACK,
-                                   .hovered = DARKBLUE,
-                                   .highlighted = YELLOW};
-static CheckBoxColors cb_colors = {.outer = GREEN, .inner = RED};
 
 enum { TRT_FROM, TRT_INPUTS, TRT_TO, TRT_MAX };
 
@@ -167,7 +156,6 @@ void editor_load(GlobalState *gs) {
 
     for (i32 i = 0; i < CHECK_BOX_MAX; ++i) {
         check_box_create(&check_boxes[i], check_box_rects[i]);
-        check_box_set_colors(&check_boxes[i], cb_colors);
     }
 
     struct {
@@ -489,7 +477,6 @@ static i32 editor_update_world(Vector2 mpos, GlobalState *gs, i32 handled) {
         handled = MARK_INPUT_HANDLED(handled, MOUSE_BUTTON_RIGHT);
         Node node;
         node_create(&node, mpos);
-        node_set_colors(&node, node_colors);
         node_set_font(&node, gs->font, 32);
         node.editing = true;
         darray_push(&gs->nodes, node);
@@ -737,7 +724,6 @@ static void on_transition_add_button_clicked(GlobalState *gs) {
 
         TLine tline;
         tline_create(&tline);
-        tline_set_colors(&tline, tline_colors);
         tline_set_start_node(&tline, node_selectors[NODE_SELECTOR_FROM].node);
         tline_set_end_node(&tline, node_selectors[NODE_SELECTOR_TO].node);
         tline_set_inputs(&tline, inputs, len);

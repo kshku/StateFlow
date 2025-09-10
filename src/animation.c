@@ -110,8 +110,6 @@ void animation_load(GlobalState *gs) {
 
     current_states = darray_create(Node *);
 
-    InputBoxColors ib_colors = {.box = BLACK, .text = WHITE};
-
     struct {
             Rectangle rect;
             const char *text;
@@ -130,14 +128,6 @@ void animation_load(GlobalState *gs) {
 
     input_box_create(&input, (Rectangle){210, 10, 900, 48}, 256);
     input_box_set_font(&input, gs->font);
-    input_box_set_colors(&input, ib_colors);
-
-    ButtonColors button_colors = {.text = GREEN,
-                                  .normal = BLUE,
-                                  .down = DARKBLUE,
-                                  .disabled = GRAY,
-                                  .disabled_text = Fade(GREEN, 0.5),
-                                  .hovered = VIOLET};
 
     struct {
             Rectangle rect;
@@ -151,7 +141,6 @@ void animation_load(GlobalState *gs) {
 
     for (u32 i = 0; i < BUTTON_MAX; ++i) {
         button_create(&buttons[i], button_params[i].rect);
-        button_set_colors(&buttons[i], button_colors);
         button_set_text_and_font(&buttons[i], button_params[i].name,
                                  button_params[i].len, gs->font);
     }
@@ -482,23 +471,6 @@ static void animation_animate(GlobalState *gs) {
             }
         }
     }
-
-    // switch (anim_prev_state) {
-    //     case ANIMATING_STATE_NONE:
-    //         break;
-    //     case ANIMATING_STATE_NODE:
-    //         break;
-    //     case ANIMATING_STATE_INPUT:
-    //         break;
-    //     case ANIMATING_STATE_TLINE:
-    //         break;
-    //     case ANIMATING_STATE_RESULT:
-    //         break;
-    //     case ANIMATING_STATE_WATING:
-    //         break;
-    //     default:
-    //         break;
-    // }
 
     i32 width = GetScreenWidth();
     i32 height = GetScreenHeight();

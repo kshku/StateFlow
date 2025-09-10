@@ -1,14 +1,16 @@
 #include "button.h"
 
 void button_create(Button *btn, Rectangle rect) {
-    btn->colors.normal = WHITE;
-    btn->colors.hovered = WHITE;
-    btn->colors.down = WHITE;
-    btn->colors.disabled = WHITE;
     text_box_create(&btn->text, rect);
     btn->state = BUTTON_STATE_NORMAL;
     btn->pressed = false;
     btn->clicked = false;
+    button_set_colors(btn, (ButtonColors){.text = GREEN,
+                                          .normal = BLUE,
+                                          .down = DARKBLUE,
+                                          .disabled_text = Fade(GREEN, 0.5f),
+                                          .disabled = GRAY,
+                                          .hovered = VIOLET});
 }
 
 void button_destroy(Button *btn) {

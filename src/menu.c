@@ -56,18 +56,10 @@ void menu_load(GlobalState *gs) {
         {      "Load FSM",  8}
     };
 
-    ButtonColors colors = {.text = GREEN,
-                           .normal = BLUE,
-                           .down = DARKBLUE,
-                           .disabled = GRAY,
-                           .disabled_text = Fade(GREEN, 0.5),
-                           .hovered = VIOLET};
-
     for (i32 i = 0; i < BUTTON_MAX; ++i) {
         button_create(&buttons[i], rect);
         button_set_text_and_font(&buttons[i], button_texts[i].name,
                                  button_texts[i].len, gs->font);
-        button_set_colors(&buttons[i], colors);
         rect.y += rect.height + diff;
     }
 

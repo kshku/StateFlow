@@ -69,7 +69,11 @@ void node_set_font(Node *n, Font font, float font_size) {
 
     if (n->name) {
         Vector2 size = MeasureTextEx(n->font, n->name, n->font_size, 1.0f);
-        n->radius = CLAMP_MIN((size.x / 2.0f), NODE_MINIMUM_RADIUS);
+        n->radius = CLAMP_MIN((size.x / 2.0f) + 10.0f, NODE_MINIMUM_RADIUS);
+        n->position = (Vector2){
+            .x = n->center.x - (size.x / 2.0f),
+            .y = n->center.y - (size.y / 2.0f),
+        };
     }
 }
 

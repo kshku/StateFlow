@@ -21,7 +21,7 @@ void input_box_create(InputBox *ib, Rectangle rect, u32 max_len) {
     ib->text[max_len] = 0;
 
     input_box_set_font(ib, GetFontDefault());
-    ib->colors = (InputBoxColors){.box = WHITE, .text = BLACK};
+    ib->colors = (InputBoxColors){.box = BLACK, .text = WHITE};
     ib->frame_counter = 0;
     ib->disabled = false;
 }
