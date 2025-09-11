@@ -1,6 +1,7 @@
-#include <raymath.h>
-
 #include "stateflow.h"
+
+// raymath.h should be included after raylib.h
+#include <raymath.h>
 
 static u32 logo_x, logo_y;
 static u32 top_left, bottom_right;

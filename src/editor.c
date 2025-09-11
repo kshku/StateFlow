@@ -1,9 +1,11 @@
+#include "stateflow.h"
+
+// raymath.h should be included after raylib.h
 #include <raylib.h>
 #include <raymath.h>
 #include <stdlib.h>
 #include <tinyfiledialogs.h>
 
-#include "stateflow.h"
 #include "utils/button.h"
 #include "utils/checkbox.h"
 #include "utils/darray.h"

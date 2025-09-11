@@ -41,4 +41,8 @@ endif()
 
 target_include_directories(${APP_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/raylib/src ${PROJECT_SOURCE_DIR}/external/tinyfiledialogs ${CMAKE_CURRENT_SOURCE_DIR})
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_compile_definitions(${APP_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 add_subdirectory(utils)

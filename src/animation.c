@@ -1,7 +1,8 @@
-#include <raylib.h>
+#include "stateflow.h"
+
+// raymath.h should be included after raylib.h
 #include <raymath.h>
 
-#include "stateflow.h"
 #include "utils/button.h"
 #include "utils/darray.h"
 #include "utils/dfa.h"
@@ -70,7 +71,7 @@ static KeyboardKey navigation_keys[][4] = {
     {   KEY_H,     KEY_L,  KEY_K,    KEY_J},
 };
 
-static void animation_update_transforms();
+static void animation_update_transforms(void);
 static i32 animation_update_world(Vector2 mpos, GlobalState *gs, i32 handled);
 static Vector2 animation_get_transformed_mouse_position(void);
 static void animation_update_nodes_and_tlines(GlobalState *gs);
@@ -255,7 +256,7 @@ void animation_before_draw(GlobalState *gs) {
     EndTextureMode();
 }
 
-static void animation_update_transforms() {
+static void animation_update_transforms(void) {
     i32 width = GetScreenWidth();
     i32 height = GetScreenHeight();
     float scale_x = (float)width / target.texture.width;
