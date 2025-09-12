@@ -226,7 +226,7 @@ void animation_draw(GlobalState *gs) {
     }
     if (invalid_input) {
         DrawTextEx(gs->font, "Invalid input!",
-                   (Vector2){10, GetScreenHeight() - 25}, 24, 1.0f, RED);
+                   (Vector2){10, GetScreenHeight() - 48}, 48, 1.0f, RED);
     }
 
     switch (result) {
